@@ -15,6 +15,11 @@ and this site adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   `PUBLIC_GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` variables.
 - `/login` now points the GitHub button at the real start page and
   reserves a SAML SSO slot for enterprise editions.
+- `/api-keys` surface: list / create / revoke API keys with mock data,
+  one-time raw-key reveal dialog, and per-key scope checkboxes. Adds the
+  first batch of in-house shadcn/ui primitives (`button`, `card`,
+  `input`, `badge`, `dialog`, plus a `cn` helper) under
+  `src/components/ui/`.
 
 ## [0.1.0-alpha.0] — 2026-05-19
 
