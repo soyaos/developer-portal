@@ -1,0 +1,20 @@
+---
+import Base from "../layouts/Base.astro";
+import { WebhookFeed } from "../components/WebhookFeed";
+---
+
+<Base title="Webhook Debugger · SoyaOS Developer Portal">
+  <section class="mb-8">
+    <p class="text-xs uppercase tracking-[0.2em] text-soya-accent">Connectors</p>
+    <h1 class="mt-2 text-3xl font-semibold tracking-tight">Webhook debugger</h1>
+    <p class="mt-2 max-w-2xl text-sm text-soya-ink/70">
+      Tail inbound payloads for a Channel binding in real time. Click any
+      row to see the raw webhook body alongside the canonical
+      <code>Message</code> shape that the platform routes to your Agents.
+      Useful for verifying signing headers, encoding quirks and at-most-once
+      delivery during connector bring-up.
+    </p>
+  </section>
+
+  <WebhookFeed client:load />
+</Base>

@@ -20,6 +20,11 @@ and this site adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   first batch of in-house shadcn/ui primitives (`button`, `card`,
   `input`, `badge`, `dialog`, plus a `cn` helper) under
   `src/components/ui/`.
+- `/webhook-debugger` surface: live inbound feed for a selected Channel
+  binding (DingTalk / Feishu / WeChat mocks), with raw JSON ↔ canonical
+  `Message` split view, Pause/Resume + Clear, and a 100-event LRU buffer.
+  Driven by a mock `setInterval`; a TODO points at the real SSE endpoint
+  `GET /control/v0/connectors/bindings/{id}/feed`.
 
 ## [0.1.0-alpha.0] — 2026-05-19
 
