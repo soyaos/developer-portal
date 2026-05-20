@@ -7,6 +7,15 @@ and this site adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Added
+
+- GitHub OAuth scaffold: `/auth/github/start` and `/auth/github/callback`
+  pages, plus a `src/lib/session.ts` helper that reads / writes the
+  `soyaos_session` httpOnly cookie. `.env.example` documents the required
+  `PUBLIC_GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` variables.
+- `/login` now points the GitHub button at the real start page and
+  reserves a SAML SSO slot for enterprise editions.
+
 ## [0.1.0-alpha.0] — 2026-05-19
 
 ### Added

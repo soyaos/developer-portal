@@ -6,14 +6,13 @@ import Base from "../layouts/Base.astro";
   <section class="mx-auto max-w-md py-16 text-center">
     <h1 class="text-2xl font-semibold tracking-tight">Sign in</h1>
     <p class="mt-2 text-sm text-soya-ink/70">
-      Authentication is not wired up yet. The GitHub OAuth flow lands in a
-      later alpha drop — please come back after we cut <code>0.1.0-alpha.1</code>.
+      Pick how you want to authenticate. GitHub OAuth is wired up for the
+      alpha; SAML lands with the enterprise edition.
     </p>
 
-    <button
-      type="button"
-      disabled
-      class="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-md border border-soya-ink/15 bg-soya-ink/5 px-4 py-2.5 text-sm font-medium text-soya-ink/60"
+    <a
+      href="/auth/github/start"
+      class="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-md bg-soya-ink px-4 py-2.5 text-sm font-medium text-soya-paper transition hover:bg-soya-ink/85 focus:outline-none focus:ring-2 focus:ring-soya-accent"
     >
       <svg
         viewBox="0 0 16 16"
@@ -26,10 +25,25 @@ import Base from "../layouts/Base.astro";
         ></path>
       </svg>
       Continue with GitHub
-    </button>
+    </a>
 
-    <p class="mt-4 text-xs uppercase tracking-wider text-soya-accent/80">
-      GitHub Sign-In coming soon
+    <div class="mt-6 rounded-xl border border-dashed border-soya-ink/15 bg-white/40 p-5 text-left">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-medium tracking-tight">SAML SSO</h2>
+        <span class="rounded-full bg-soya-accent/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-soya-accent">
+          coming soon · enterprise editions
+        </span>
+      </div>
+      <p class="mt-2 text-xs text-soya-ink/60">
+        Bring your own identity provider (Okta, Azure AD, Google Workspace).
+        Enterprise admins will be able to configure metadata XML and claim
+        mappings from the org settings page.
+      </p>
+    </div>
+
+    <p class="mt-6 text-xs text-soya-ink/50">
+      By continuing you agree to the
+      <a href="/docs" class="underline hover:text-soya-accent">Terms</a>.
     </p>
   </section>
 </Base>

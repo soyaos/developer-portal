@@ -38,6 +38,29 @@ npm run dev
 
 Then open <http://localhost:4321>.
 
+## Auth Setup
+
+The portal signs developers in with GitHub OAuth. To run the flow
+end-to-end locally:
+
+1. Visit <https://github.com/settings/developers> and create a new
+   **OAuth App** (not a GitHub App). Use:
+   - Homepage URL: `http://localhost:4321`
+   - Authorization callback URL: `http://localhost:4321/auth/github/callback`
+2. Copy the generated **Client ID** and **Client secret**.
+3. `cp .env.example .env.local` and fill in:
+   ```env
+   PUBLIC_GITHUB_CLIENT_ID=Iv1.xxxxxxxxxxxxxxxx
+   GITHUB_CLIENT_SECRET=ghp_xxxxxxxxxxxxxxxxxxxx
+   ```
+4. Restart `bun run dev`. Click **Sign in** → **Continue with GitHub**.
+
+During alpha the callback handler mocks the control-plane exchange and
+issues a fake session token cookie (`soyaos_session`, httpOnly + secure).
+The TODO in `src/pages/auth/github/callback.astro` shows exactly where to
+plug in the real `POST /control/v0/auth/github/exchange` call. SAML SSO
+ships with the enterprise edition.
+
 ## 中文 Quickstart
 
 SoyaOS 开发者门户的源码。使用 Astro 5 + React + Tailwind 构建，部署到
