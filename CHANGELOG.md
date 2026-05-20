@@ -25,6 +25,11 @@ and this site adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   `Message` split view, Pause/Resume + Clear, and a 100-event LRU buffer.
   Driven by a mock `setInterval`; a TODO points at the real SSE endpoint
   `GET /control/v0/connectors/bindings/{id}/feed`.
+- `/usage` surface: per-key &times; agent &times; sandbox-image quota
+  dashboard with Today / 7d / 30d tabs, four KPI cards (Calls, vCPU·s,
+  GPU·s, Bytes out), a column-sortable breakdown table and an inline
+  reminder of the 100ms-granularity billing rule. Adds a `tabs.tsx`
+  shadcn primitive. Real wiring placeholder: `GET /control/v0/usage`.
 
 ## [0.1.0-alpha.0] — 2026-05-19
 
