@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background-color: theme("colors.soya.paper");
+  color: theme("colors.soya.ink");
+}
+
+a {
+  color: inherit;
+}

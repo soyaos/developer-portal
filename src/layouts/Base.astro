@@ -1,0 +1,57 @@
+---
+import "../styles/globals.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "SoyaOS Developer Portal",
+  description = "API Reference, Playground, API Keys, Webhook Debugger and Usage Dashboard for SoyaOS.",
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+  </head>
+  <body class="min-h-screen flex flex-col font-sans">
+    <header class="border-b border-soya-ink/10">
+      <div class="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
+        <a href="/" class="flex items-center gap-2 font-semibold tracking-tight">
+          <span class="inline-block h-3 w-3 rounded-full bg-soya-accent"></span>
+          <span>SoyaOS Developer</span>
+        </a>
+        <nav class="text-sm flex items-center gap-6">
+          <a href="/docs" class="hover:text-soya-accent">Docs</a>
+          <a href="/" class="hover:text-soya-accent">Dashboard</a>
+          <a
+            href="/login"
+            class="rounded-md border border-soya-ink/15 px-3 py-1.5 hover:border-soya-accent"
+            >Sign in</a
+          >
+        </nav>
+      </div>
+    </header>
+
+    <main class="flex-1 mx-auto w-full max-w-6xl px-6 py-10">
+      <slot />
+    </main>
+
+    <footer class="border-t border-soya-ink/10 text-xs text-soya-ink/60">
+      <div class="mx-auto max-w-6xl px-6 py-6 flex flex-wrap items-center justify-between gap-2">
+        <span>&copy; 2026 SoyaOS Contributors &middot; MIT</span>
+        <span>
+          <a href="https://soyaos.ai" class="hover:text-soya-accent">soyaos.ai</a>
+          &middot;
+          <a href="https://docs.soyaos.ai" class="hover:text-soya-accent">docs.soyaos.ai</a>
+        </span>
+      </div>
+    </footer>
+  </body>
+</html>
