@@ -10,6 +10,14 @@ const {
   title = "SoyaOS Developer Portal",
   description = "API Reference, Playground, API Keys, Webhook Debugger and Usage Dashboard for SoyaOS.",
 } = Astro.props;
+
+// PUBLIC_ALPHA_MOCK is set by the CI deploy workflow. We default it
+// to "true" so local dev also shows the banner; flip the env var to
+// "false" (or remove it) once the control plane RPC is wired and the
+// portal stops serving mock data — tracked in EPIC 6 (OAuth + control
+// plane).
+const alphaMock =
+  (import.meta.env.PUBLIC_ALPHA_MOCK ?? "true").toLowerCase() !== "false";
 ---
 
 <!doctype html>
@@ -18,13 +26,39 @@ const {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
     <title>{title}</title>
   </head>
   <body class="min-h-screen flex flex-col font-sans">
+    {alphaMock && (
+      <div
+        role="alert"
+        class="bg-yellow-300 text-yellow-950 border-b border-yellow-500/60"
+      >
+        <div class="mx-auto max-w-6xl px-6 py-2 text-sm flex items-center justify-between gap-3">
+          <span>
+            <strong>Alpha preview</strong> · 数据为 mock，正式后端接入跟踪于
+            <a
+              href="https://linear.app/appforges/project/soyaosconstruction-82e7f1bdd71e"
+              class="underline hover:no-underline"
+              rel="noopener noreferrer"
+              target="_blank">EPIC 6 — OAuth + control plane</a
+            >。
+          </span>
+          <a
+            href="https://github.com/soyaos/developer-portal"
+            class="underline hover:no-underline whitespace-nowrap"
+            rel="noopener noreferrer"
+            target="_blank">Source</a
+          >
+        </div>
+      </div>
+    )}
     <header class="border-b border-soya-ink/10">
       <div class="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
         <a href="/" class="flex items-center gap-2 font-semibold tracking-tight">
-          <span class="inline-block h-3 w-3 rounded-full bg-soya-accent"></span>
+          <img src="/logo.png" alt="SoyaOS" width="28" height="28" class="inline-block" />
           <span>SoyaOS Developer</span>
         </a>
         <nav class="text-sm flex items-center gap-6">

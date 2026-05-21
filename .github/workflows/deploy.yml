@@ -1,0 +1,56 @@
+name: Deploy to Cloudflare Pages
+
+# Build the Astro app and publish to the Cloudflare Pages project
+# `soyaos-developer-portal`. First push creates the Pages project; later
+# pushes produce a new deployment. The custom domain
+# `developer.soyaos.ai` is bound to the Pages project via the Cloudflare
+# dashboard — see README.md.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build + deploy
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://developer.soyaos.ai
+    env:
+      # Surface the alpha-mock banner in production builds. Strip this
+      # env var (or set it to "false") once the control plane RPC is
+      # wired and the portal is no longer fronting mock data.
+      PUBLIC_ALPHA_MOCK: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build (Astro)
+        run: npm run build
+
+      - name: Publish to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Astro emits to `dist/`. `--branch=main` pins this as a
+          # production deployment rather than a preview.
+          command: pages deploy dist --project-name=soyaos-developer-portal --branch=main

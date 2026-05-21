@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="public/logo.png" alt="SoyaOS" width="120" height="120" />
+</p>
+
 # developer-portal
 
 Source for **[developer.soyaos.ai](https://developer.soyaos.ai)** — the
@@ -80,6 +84,41 @@ Production is deployed to **Cloudflare Pages**:
 - Build command: `bun run build` (or `npm run build`).
 - Output directory: `dist/`.
 - Custom domain: `developer.soyaos.ai`.
+
+## Alpha mock banner
+
+Every page in this portal shows a yellow `Alpha preview` banner at the
+top of the layout (`src/layouts/Base.astro`). It is gated by
+`import.meta.env.PUBLIC_ALPHA_MOCK`; the CI deploy workflow sets it to
+`"true"`. Once the control plane RPC is wired in EPIC 6 and the portal
+is no longer serving mock data, flip the env var to `"false"` (or
+remove it from `.github/workflows/deploy.yml`) and the banner
+disappears.
+
+Tracking checklist for "stop being mock":
+
+- `/api-keys` → wire `POST /control/v0/auth/keys`
+- `/webhook-debugger` → subscribe to `webhook.event.v1` over WS
+- `/usage` → call `GET /control/v0/usage`
+- Banner stays until **all three** land.
+
+## Deploy
+
+`main` is auto-deployed to the Cloudflare Pages project
+`soyaos-developer-portal` by `.github/workflows/deploy.yml` on every
+push. The custom domain `developer.soyaos.ai` is bound to that Pages
+project via the Cloudflare dashboard (CNAME `developer` →
+`soyaos-developer-portal.pages.dev`, "Always Use HTTPS" enabled).
+
+Required repo secrets (Settings → Secrets and variables → Actions):
+
+| Secret                  | Notes                                                     |
+| ----------------------- | --------------------------------------------------------- |
+| `CLOUDFLARE_API_TOKEN`  | Pages:Edit (least privilege).                             |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account that owns the Pages project.           |
+
+Optional: set repository variable `PUBLIC_ALPHA_MOCK=false` (or edit
+the workflow) once the real control plane is wired in.
 
 ## License
 
