@@ -18,7 +18,3 @@ body {
   background-color: var(--color-soya-paper);
   color: var(--color-soya-ink);
 }
-
-a {
-  color: inherit;
-}
