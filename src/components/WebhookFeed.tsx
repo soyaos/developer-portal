@@ -112,7 +112,7 @@ const SAMPLES_BY_CHANNEL: Record<Binding["channel"], () => InboundEvent> = {
         CreateTime: Math.floor(Date.now() / 1000),
         MsgType: "text",
         Content: "客服你好，我想咨询一下退款流程",
-        MsgId: 9223372036854775000,
+        MsgId: "9223372036854775807",
       },
       decoded: {
         kind: "text",

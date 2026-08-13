@@ -18,6 +18,7 @@ const {
 // plane).
 const alphaMock =
   (import.meta.env.PUBLIC_ALPHA_MOCK ?? "true").toLowerCase() !== "false";
+const user = Astro.locals.user;
 ---
 
 <!doctype html>
@@ -67,11 +68,23 @@ const alphaMock =
           <a href="/webhook-debugger" class="hover:text-soya-accent">Webhooks</a>
           <a href="/usage" class="hover:text-soya-accent">Usage</a>
           <a href="/" class="hover:text-soya-accent">Dashboard</a>
-          <a
-            href="/login"
-            class="rounded-md border border-soya-ink/15 px-3 py-1.5 hover:border-soya-accent"
-            >Sign in</a
-          >
+          {user ? (
+            <div class="flex items-center gap-3">
+              <span class="text-xs text-soya-ink/60">@{user.login}</span>
+              <form method="post" action="/auth/logout">
+                <button
+                  type="submit"
+                  class="rounded-md border border-soya-ink/15 px-3 py-1.5 hover:border-soya-accent"
+                >Sign out</button>
+              </form>
+            </div>
+          ) : (
+            <a
+              href="/login"
+              class="rounded-md border border-soya-ink/15 px-3 py-1.5 hover:border-soya-accent"
+              >Sign in</a
+            >
+          )}
         </nav>
       </div>
     </header>

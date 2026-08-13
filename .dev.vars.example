@@ -1,0 +1,9 @@
+# Local-only Cloudflare runtime bindings. Copy this file to `.dev.vars`, fill
+# in development credentials, and never commit that resulting file.
+
+GITHUB_OAUTH_CLIENT_ID=
+GITHUB_OAUTH_CLIENT_SECRET=
+
+# Generate with: openssl rand -base64 48
+# Rotating this value invalidates active local sessions.
+SESSION_SECRET=
