@@ -13,11 +13,15 @@ export const prerender = false;
 export const OAUTH_STATE_COOKIE = "__Host-soyaos_oauth_state";
 export const OAUTH_RETURN_COOKIE = "__Host-soyaos_oauth_return_to";
 
-const TRANSIENT_COOKIE_OPTIONS = {
+export const OAUTH_COOKIE_DELETE_OPTIONS = {
   httpOnly: true,
   sameSite: "lax" as const,
   secure: true,
   path: "/",
+};
+
+const TRANSIENT_COOKIE_OPTIONS = {
+  ...OAUTH_COOKIE_DELETE_OPTIONS,
   maxAge: 600,
 };
 
