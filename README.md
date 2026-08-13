@@ -4,6 +4,18 @@
 
 # developer-portal
 
+> [!WARNING]
+> **开发中，尚未正式发布（Development Preview — Not Released）**
+>
+> 本项目仍在积极开发，功能和接口尚未稳定，随时可能发生不向后兼容的
+> breaking changes。请勿将当前版本用于生产环境，也不要依赖现有 API、
+> 配置格式或行为保持不变。
+>
+> This project is under active development and has not been officially
+> released. Features and interfaces are unstable and may introduce breaking
+> changes without notice. Do not use the current version in production or
+> rely on existing APIs, configuration formats, or behavior remaining stable.
+
 Source for **[developer.soyaos.ai](https://developer.soyaos.ai)** — the
 SoyaOS Developer Portal.
 
