@@ -9,7 +9,11 @@ import {
 } from "../../../lib/github-oauth";
 import { runtimeEnv } from "../../../lib/runtime-env";
 import { createSession, setSession } from "../../../lib/session";
-import { OAUTH_RETURN_COOKIE, OAUTH_STATE_COOKIE } from "./start";
+import {
+  OAUTH_COOKIE_DELETE_OPTIONS,
+  OAUTH_RETURN_COOKIE,
+  OAUTH_STATE_COOKIE,
+} from "./start";
 
 export const prerender = false;
 
@@ -26,8 +30,8 @@ function failure(message: string, status: number): Response {
 export const GET: APIRoute = async ({ cookies, url }) => {
   const expectedState = cookies.get(OAUTH_STATE_COOKIE)?.value ?? "";
   const returnTo = sanitizeReturnTo(cookies.get(OAUTH_RETURN_COOKIE)?.value ?? null);
-  cookies.delete(OAUTH_STATE_COOKIE, { path: "/" });
-  cookies.delete(OAUTH_RETURN_COOKIE, { path: "/" });
+  cookies.delete(OAUTH_STATE_COOKIE, OAUTH_COOKIE_DELETE_OPTIONS);
+  cookies.delete(OAUTH_RETURN_COOKIE, OAUTH_COOKIE_DELETE_OPTIONS);
 
   if (url.searchParams.has("error")) {
     return failure("GitHub sign-in was cancelled or rejected.", 400);

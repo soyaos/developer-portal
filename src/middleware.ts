@@ -1,4 +1,5 @@
 import type { MiddlewareHandler } from "astro";
+import { sanitizeReturnTo } from "./lib/github-oauth";
 import { runtimeEnv } from "./lib/runtime-env";
 import { clearSession, getSession } from "./lib/session";
 
@@ -14,6 +15,18 @@ export const onRequest: MiddlewareHandler = async (context, next) => {
   }
 
   const pathname = context.url.pathname.replace(/\/$/, "") || "/";
+  if (pathname === "/login" && session) {
+    const returnTo = sanitizeReturnTo(context.url.searchParams.get("returnTo"));
+    return new Response(null, {
+      status: 303,
+      headers: {
+        "cache-control": "private, no-store",
+        location: returnTo === "/login" ? "/" : returnTo,
+        vary: "Cookie",
+      },
+    });
+  }
+
   if (PROTECTED_PATHS.has(pathname) && !session) {
     const returnTo = `${pathname}${context.url.search}`;
     return new Response(null, {

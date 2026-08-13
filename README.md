@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/logo.png" alt="SoyaOS" width="120" height="120" />
+  <img src="public/logo.jpg" alt="SoyaOS" width="120" height="120" />
 </p>
 
 # developer-portal

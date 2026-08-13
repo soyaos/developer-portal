@@ -16,11 +16,15 @@ export interface Session {
   expiresAt: number;
 }
 
-const COOKIE_OPTIONS = {
+const COOKIE_SECURITY_OPTIONS = {
   httpOnly: true,
   sameSite: "lax" as const,
   secure: true,
   path: "/",
+};
+
+const COOKIE_OPTIONS = {
+  ...COOKIE_SECURITY_OPTIONS,
   maxAge: SESSION_MAX_AGE_SECONDS,
 };
 
@@ -145,5 +149,7 @@ export async function getSession(
 }
 
 export function clearSession(cookies: AstroCookies): void {
-  cookies.delete(SESSION_COOKIE, { path: "/" });
+  // A __Host- cookie deletion must itself satisfy the prefix requirements.
+  // Browsers ignore a clearing Set-Cookie header that omits Secure or Path=/.
+  cookies.delete(SESSION_COOKIE, COOKIE_SECURITY_OPTIONS);
 }

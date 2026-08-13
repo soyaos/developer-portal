@@ -66,6 +66,18 @@ describe("OAuth routes", () => {
     expect(response.status).toBe(400);
     expect(fetcher).not.toHaveBeenCalled();
     expect(cookies.deletions).toEqual(new Set([OAUTH_STATE_COOKIE, OAUTH_RETURN_COOKIE]));
+    expect(cookies.deletionOptions.get(OAUTH_STATE_COOKIE)).toMatchObject({
+      httpOnly: true,
+      sameSite: "lax",
+      secure: true,
+      path: "/",
+    });
+    expect(cookies.deletionOptions.get(OAUTH_RETURN_COOKIE)).toMatchObject({
+      httpOnly: true,
+      sameSite: "lax",
+      secure: true,
+      path: "/",
+    });
     expect(await response.text()).not.toContain("sensitive-code");
   });
 
@@ -161,6 +173,12 @@ describe("OAuth routes", () => {
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe("/login");
     expect(cookies.deletions.has(SESSION_COOKIE)).toBe(true);
+    expect(cookies.deletionOptions.get(SESSION_COOKIE)).toMatchObject({
+      httpOnly: true,
+      sameSite: "lax",
+      secure: true,
+      path: "/",
+    });
   });
 });
 
@@ -204,5 +222,26 @@ describe("auth middleware", () => {
     expect((context as { locals: { user: { login: string } | null } }).locals.user?.login).toBe(
       "octocat",
     );
+  });
+
+  it("redirects an authenticated user away from the login page", async () => {
+    const cookies = new MemoryCookies();
+    await setSession(
+      cookies.asAstroCookies(),
+      createSession({ id: 12345, login: "octocat", name: null, avatarUrl: null }),
+      ENV.SESSION_SECRET ?? "",
+    );
+    const response = (await onRequest(
+      routeContext(
+        "https://developer.soyaos.ai/login?returnTo=%2Fapi-keys",
+        cookies,
+        ENV,
+      ),
+      async () => new Response("sign-in page"),
+    )) as Response;
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/api-keys");
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(response.headers.get("vary")).toBe("Cookie");
   });
 });

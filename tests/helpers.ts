@@ -10,6 +10,7 @@ export class MemoryCookies {
   readonly values = new Map<string, string>();
   readonly writes = new Map<string, CookieWrite>();
   readonly deletions = new Set<string>();
+  readonly deletionOptions = new Map<string, Record<string, unknown>>();
 
   constructor(initial: Record<string, string> = {}) {
     for (const [name, value] of Object.entries(initial)) this.values.set(name, value);
@@ -30,9 +31,10 @@ export class MemoryCookies {
     this.deletions.delete(name);
   }
 
-  delete(name: string): void {
+  delete(name: string, options: Record<string, unknown> = {}): void {
     this.values.delete(name);
     this.deletions.add(name);
+    this.deletionOptions.set(name, options);
   }
 
   asAstroCookies(): AstroCookies {
