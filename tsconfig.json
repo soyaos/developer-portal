@@ -8,5 +8,11 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/**/*", "astro.config.mjs"]
+  "include": [
+    "src/**/*",
+    "tests/**/*",
+    "worker-configuration.d.ts",
+    "astro.config.mjs",
+    "vitest.config.ts"
+  ]
 }

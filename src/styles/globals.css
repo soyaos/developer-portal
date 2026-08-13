@@ -1,6 +1,13 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-soya-ink: #1f1d1a;
+  --color-soya-paper: #fbf8f1;
+  --color-soya-accent: #c8a35a;
+  --font-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+}
 
 :root {
   color-scheme: light;
@@ -8,8 +15,8 @@
 
 html,
 body {
-  background-color: theme("colors.soya.paper");
-  color: theme("colors.soya.ink");
+  background-color: var(--color-soya-paper);
+  color: var(--color-soya-ink);
 }
 
 a {

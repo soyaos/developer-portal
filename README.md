@@ -7,36 +7,30 @@
 Source for **[developer.soyaos.ai](https://developer.soyaos.ai)** — the
 SoyaOS Developer Portal.
 
-It hosts five surfaces that all share a single Astro + React + Tailwind
+It hosts four surfaces that all share a single Astro + React + Tailwind
 codebase:
 
 | Surface              | Path                | Status (alpha) |
 | -------------------- | ------------------- | -------------- |
 | API Reference        | `/docs`             | iframe to docs.soyaos.ai |
-| Playground           | `/playground`       | placeholder    |
-| API Keys             | `/keys`             | placeholder    |
-| Webhook Debugger     | `/webhooks`         | placeholder    |
+| API Keys             | `/api-keys`         | placeholder    |
+| Webhook Debugger     | `/webhook-debugger` | placeholder    |
 | Usage Dashboard      | `/usage`            | placeholder    |
 
 ## Stack
 
-- [Astro 5](https://astro.build) — static-first with island hydration.
+- [Astro 7](https://astro.build) — Cloudflare SSR with island hydration.
 - [React 18](https://react.dev) — used inside Astro islands for the
-  Playground, Keys, Webhooks and Usage interactive UIs.
-- [Tailwind CSS](https://tailwindcss.com) — utility classes; the
-  `Soya / stone-ground warmth` palette is wired in `tailwind.config.mjs`.
+  Keys, Webhooks and Usage interactive UIs.
+- [Tailwind CSS 4](https://tailwindcss.com) — utility classes with the
+  `Soya / stone-ground warmth` theme in `src/styles/globals.css`.
 - shadcn/ui — added per-component as the dashboards land.
-- [Bun](https://bun.sh) — preferred dev runtime; fall back to `npm` is fine.
+- Node.js 22.12 or newer; CI and production builds use Node.js 24.
 
 ## Local dev
 
 ```bash
-# Bun (preferred)
-bun install
-bun run dev
-
-# or, if Bun isn't available
-npm install
+npm ci
 npm run dev
 ```
 
@@ -44,46 +38,55 @@ Then open <http://localhost:4321>.
 
 ## Auth Setup
 
-The portal signs developers in with GitHub OAuth. To run the flow
-end-to-end locally:
+The portal signs developers in with GitHub OAuth from Cloudflare Workers SSR.
+The GitHub access token exists only while the callback fetches `/user`; the
+browser receives an encrypted, authenticated session cookie instead.
+
+To run the flow end-to-end locally, create a separate development OAuth App:
 
 1. Visit <https://github.com/settings/developers> and create a new
    **OAuth App** (not a GitHub App). Use:
    - Homepage URL: `http://localhost:4321`
    - Authorization callback URL: `http://localhost:4321/auth/github/callback`
 2. Copy the generated **Client ID** and **Client secret**.
-3. `cp .env.example .env.local` and fill in:
-   ```env
-   PUBLIC_GITHUB_CLIENT_ID=Iv1.xxxxxxxxxxxxxxxx
-   GITHUB_CLIENT_SECRET=ghp_xxxxxxxxxxxxxxxxxxxx
+3. Create the ignored Cloudflare local-secret file and fill in its values:
+   ```bash
+   cp .dev.vars.example .dev.vars
    ```
-4. Restart `bun run dev`. Click **Sign in** → **Continue with GitHub**.
+   ```dotenv
+   GITHUB_OAUTH_CLIENT_ID=your-client-id
+   GITHUB_OAUTH_CLIENT_SECRET=your-client-secret
+   SESSION_SECRET=the-output-from-openssl-rand-base64-48
+   ```
+   Generate the last value with `openssl rand -base64 48` and paste its output
+   after `SESSION_SECRET=`.
+4. Restart `npm run dev`. Click **Sign in** → **Continue with GitHub**.
 
-During alpha the callback handler mocks the control-plane exchange and
-issues a fake session token cookie (`soyaos_session`, httpOnly + secure).
-The TODO in `src/pages/auth/github/callback.astro` shows exactly where to
-plug in the real `POST /control/v0/auth/github/exchange` call. SAML SSO
-ships with the enterprise edition.
+Do not reuse the production OAuth App for localhost: its registered callback
+is `https://developer.soyaos.ai/auth/github/callback`. Unit tests mock GitHub
+HTTP responses and do not require real credentials. SAML SSO ships with the
+enterprise edition.
 
 ## 中文 Quickstart
 
-SoyaOS 开发者门户的源码。使用 Astro 5 + React + Tailwind 构建，部署到
-Cloudflare Pages。本地开发：
+SoyaOS 开发者门户的源码。使用 Astro 7 + React + Tailwind 4 构建，部署到
+Cloudflare Workers。本地开发：
 
 ```bash
-bun install
-bun run dev      # 等价于 npm install && npm run dev
+npm ci
+npm run dev
 ```
 
-构建产物在 `dist/`，可直接给 Cloudflare Pages / Vercel / 静态托管。
+构建产物在 `dist/`，包含 Cloudflare Worker 与静态 assets。
 
 ## Deployment
 
-Production is deployed to **Cloudflare Pages**:
+Production is deployed to **Cloudflare Workers**:
 
-- Build command: `bun run build` (or `npm run build`).
+- Build command: `npm run build`.
 - Output directory: `dist/`.
 - Custom domain: `developer.soyaos.ai`.
+- Runtime: `@astrojs/cloudflare` on Workers.
 
 ## Alpha mock banner
 
@@ -104,18 +107,30 @@ Tracking checklist for "stop being mock":
 
 ## Deploy
 
-`main` is auto-deployed to the Cloudflare Pages project
+`main` is auto-deployed to the Cloudflare Worker
 `soyaos-developer-portal` by `.github/workflows/deploy.yml` on every
-push. The custom domain `developer.soyaos.ai` is bound to that Pages
-project via the Cloudflare dashboard (CNAME `developer` →
-`soyaos-developer-portal.pages.dev`, "Always Use HTTPS" enabled).
+push. The custom domain `developer.soyaos.ai` is bound to that Worker.
 
 Required repo secrets (Settings → Secrets and variables → Actions):
 
 | Secret                  | Notes                                                     |
 | ----------------------- | --------------------------------------------------------- |
-| `CLOUDFLARE_API_TOKEN`  | Pages:Edit (least privilege).                             |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account that owns the Pages project.           |
+| `CLOUDFLARE_API_TOKEN`  | Workers Scripts:Edit (least privilege).                   |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account that owns the Worker.                  |
+
+Required **Cloudflare Worker secrets** (not GitHub Actions
+secrets), configured on `soyaos-developer-portal` under **Settings →
+Variables and Secrets**:
+
+| Secret                       | Notes                                                      |
+| ---------------------------- | ---------------------------------------------------------- |
+| `GITHUB_OAUTH_CLIENT_ID`     | Client ID for the production GitHub OAuth App.             |
+| `GITHUB_OAUTH_CLIENT_SECRET` | Encrypted OAuth client secret; never exposed to the client. |
+| `SESSION_SECRET`             | At least 32 random bytes; rotation invalidates sessions.   |
+
+The session cookie is named `__Host-soyaos_session` and is AES-GCM encrypted
+with a 12-hour maximum lifetime. It is issued with `HttpOnly`, `Secure`,
+`SameSite=Lax`, and `Path=/`.
 
 Optional: set repository variable `PUBLIC_ALPHA_MOCK=false` (or edit
 the workflow) once the real control plane is wired in.

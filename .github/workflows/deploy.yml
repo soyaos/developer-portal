@@ -1,14 +1,12 @@
-name: Deploy to Cloudflare Pages
+name: Deploy to Cloudflare Workers
 
-# Build the Astro app and publish to the Cloudflare Pages project
-# `soyaos-developer-portal`. First push creates the Pages project; later
-# pushes produce a new deployment. The custom domain
-# `developer.soyaos.ai` is bound to the Pages project via the Cloudflare
-# dashboard — see README.md.
+# Build the authenticated Astro SSR app and publish the
+# `soyaos-developer-portal` Worker. Astro 7 targets Workers rather than Pages.
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch: {}
 
 permissions:
@@ -20,12 +18,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    name: Build + deploy
+  validate:
+    name: Validate
     runs-on: ubuntu-latest
-    environment:
-      name: production
-      url: https://developer.soyaos.ai
     env:
       # Surface the alpha-mock banner in production builds. Strip this
       # env var (or set it to "false") once the control plane RPC is
@@ -38,19 +33,50 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
+          cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Type and content checks
+        run: npm run check
+
+      - name: Unit tests
+        run: npm test
 
       - name: Build (Astro)
         run: npm run build
 
-      - name: Publish to Cloudflare Pages
+  deploy:
+    name: Deploy production
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://developer.soyaos.ai
+    env:
+      PUBLIC_ALPHA_MOCK: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (Astro)
+        run: npm run build
+
+      - name: Publish to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # Astro emits to `dist/`. `--branch=main` pins this as a
-          # production deployment rather than a preview.
-          command: pages deploy dist --project-name=soyaos-developer-portal --branch=main
+          command: deploy

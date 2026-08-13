@@ -9,10 +9,13 @@ and this site adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Added
 
-- GitHub OAuth scaffold: `/auth/github/start` and `/auth/github/callback`
-  pages, plus a `src/lib/session.ts` helper that reads / writes the
-  `soyaos_session` httpOnly cookie. `.env.example` documents the required
-  `PUBLIC_GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` variables.
+- Real GitHub OAuth on Cloudflare Workers SSR: `/auth/github/start` now issues
+  a one-shot state cookie and redirects to GitHub, while the callback
+  exchanges the code, reads the real GitHub identity, and discards the
+  provider token.
+- AES-GCM encrypted `__Host-soyaos_session` cookies, auth middleware for API
+  Keys / Usage / Webhook Debugger, and a POST-only `/auth/logout` endpoint.
+  Runtime credentials are read only from Cloudflare Worker secrets.
 - `/login` now points the GitHub button at the real start page and
   reserves a SAML SSO slot for enterprise editions.
 - `/api-keys` surface: list / create / revoke API keys with mock data,

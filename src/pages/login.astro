@@ -1,5 +1,9 @@
 ---
 import Base from "../layouts/Base.astro";
+
+const returnTo = Astro.url.searchParams.get("returnTo") ?? "/";
+const startUrl = new URL("/auth/github/start", Astro.url);
+startUrl.searchParams.set("returnTo", returnTo);
 ---
 
 <Base title="Sign in · SoyaOS Developer Portal">
@@ -11,7 +15,7 @@ import Base from "../layouts/Base.astro";
     </p>
 
     <a
-      href="/auth/github/start"
+      href={`${startUrl.pathname}${startUrl.search}`}
       class="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-md bg-soya-ink px-4 py-2.5 text-sm font-medium text-soya-paper transition hover:bg-soya-ink/85 focus:outline-none focus:ring-2 focus:ring-soya-accent"
     >
       <svg

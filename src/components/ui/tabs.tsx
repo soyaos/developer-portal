@@ -32,7 +32,7 @@ export function Tabs<T extends string>({
     [value, onValueChange],
   );
   return (
-    <TabsCtx.Provider value={ctx as TabsContextValue}>
+    <TabsCtx.Provider value={ctx as unknown as TabsContextValue}>
       <div className={className}>{children}</div>
     </TabsCtx.Provider>
   );
