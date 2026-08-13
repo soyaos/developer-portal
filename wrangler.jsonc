@@ -3,6 +3,14 @@
   "name": "soyaos-developer-portal",
   "main": "@astrojs/cloudflare/entrypoints/server",
   "compatibility_date": "2026-08-12",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    {
+      "pattern": "developer.soyaos.ai",
+      "custom_domain": true
+    }
+  ],
   "observability": {
     "enabled": true
   }
