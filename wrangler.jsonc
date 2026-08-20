@@ -15,6 +15,9 @@
       "custom_domain": true
     }
   ],
+  "vars": {
+    "DEPLOYMENT_ENV": "production"
+  },
   "ai": {
     "binding": "AI",
     "remote": true
@@ -30,5 +33,36 @@
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
+  },
+  "env": {
+    "staging": {
+      "workers_dev": false,
+      "preview_urls": false,
+      "routes": [
+        {
+          "pattern": "developer-staging.soyaos.ai",
+          "custom_domain": true
+        },
+        {
+          "pattern": "api-staging.soyaos.ai",
+          "custom_domain": true
+        }
+      ],
+      "vars": {
+        "DEPLOYMENT_ENV": "staging"
+      },
+      "ai": {
+        "binding": "AI",
+        "remote": true
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "soyaos-cloud-preview-staging",
+          "database_id": "1ecb5b92-491a-43d9-b4ed-784d39d8752b",
+          "migrations_dir": "migrations"
+        }
+      ]
+    }
   }
 }

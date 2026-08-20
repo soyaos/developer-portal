@@ -103,6 +103,21 @@ Production is deployed to **Cloudflare Workers**:
 - Custom domains: `developer.soyaos.ai` and `api.soyaos.ai`.
 - Runtime: `@astrojs/cloudflare` on Workers.
 
+Staging uses separate Cloudflare resources:
+
+- Worker: `soyaos-developer-portal-staging`.
+- D1: `soyaos-cloud-preview-staging`.
+- Custom domains: `developer-staging.soyaos.ai` and `api-staging.soyaos.ai`.
+- Build and deploy: `npm run deploy:staging`; migrate:
+  `npm run d1:migrate:staging`.
+
+The staging build sets `CLOUDFLARE_ENV=staging` so Astro's generated deploy
+configuration keeps the staging Worker name, domains, and bindings. Wrangler
+bindings and vars are intentionally repeated under `env.staging`
+because environment-specific bindings are not inherited. Staging and
+production must never share D1, OAuth credentials, `SESSION_SECRET`, or
+`API_KEY_PEPPER`.
+
 ## Cloud inference API
 
 The Public Preview exposes an OpenAI-compatible subset at
@@ -167,6 +182,19 @@ Variables and Secrets**:
 | `GITHUB_OAUTH_CLIENT_SECRET` | Encrypted OAuth client secret; never exposed to the client. |
 | `SESSION_SECRET`             | At least 32 random bytes; rotation invalidates sessions.   |
 | `API_KEY_PEPPER`             | At least 32 random bytes; rotation invalidates API keys.   |
+
+The staging Worker uses the same four secret names with independent values,
+plus `E2E_BOOTSTRAP_SECRET`. The latter protects
+`POST /auth/e2e/session`, which accepts only the fixed `tenant-a` and
+`tenant-b` synthetic identities. The route returns `404` unless
+`DEPLOYMENT_ENV` is exactly `staging`, including when the secret is
+accidentally configured on production. Never print the bootstrap secret,
+session cookie, or generated API keys in E2E logs or reports.
+
+GitHub OAuth also uses a separate staging OAuth App with callback
+`https://developer-staging.soyaos.ai/auth/github/callback`. Store its Client ID
+and Client Secret directly as encrypted staging Worker secrets; never commit
+them or place them in GitHub Actions logs.
 
 The session cookie is named `__Host-soyaos_session` and is AES-GCM encrypted
 with a 12-hour maximum lifetime. It is issued with `HttpOnly`, `Secure`,

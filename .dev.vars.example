@@ -8,3 +8,8 @@ GITHUB_OAUTH_CLIENT_SECRET=
 # Rotating this value invalidates active local sessions.
 SESSION_SECRET=
 API_KEY_PEPPER=replace-with-at-least-32-random-bytes
+
+# Optional local validation of the staging-only E2E session route. The route is
+# disabled unless DEPLOYMENT_ENV is exactly "staging".
+DEPLOYMENT_ENV=development
+E2E_BOOTSTRAP_SECRET=

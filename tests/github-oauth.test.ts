@@ -60,13 +60,16 @@ describe("GitHub OAuth helpers", () => {
     expect(sanitizeReturnTo(input)).toBe(expected);
   });
 
-  it("pins production callbacks and rejects preview or attacker-controlled hosts", () => {
+  it("pins production and staging callbacks and rejects attacker-controlled hosts", () => {
     expect(oauthCallbackUrl(new URL("https://developer.soyaos.ai/auth/github/start"))).toBe(
       "https://developer.soyaos.ai/auth/github/callback",
     );
     expect(oauthCallbackUrl(new URL("http://localhost:4321/auth/github/start"))).toBe(
       "http://localhost:4321/auth/github/callback",
     );
+    expect(
+      oauthCallbackUrl(new URL("https://developer-staging.soyaos.ai/auth/github/start")),
+    ).toBe("https://developer-staging.soyaos.ai/auth/github/callback");
     expect(() => oauthCallbackUrl(new URL("https://preview.pages.dev/auth/github/start"))).toThrow(
       OAuthError,
     );

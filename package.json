@@ -11,13 +11,16 @@
     "dev": "astro dev",
     "start": "astro dev",
     "build": "astro build",
+    "build:staging": "CLOUDFLARE_ENV=staging astro build",
     "preview": "astro preview",
     "cf-typegen": "wrangler types worker-configuration.d.ts",
     "check": "wrangler types worker-configuration.d.ts && astro check",
     "lint": "astro check",
     "test": "vitest run --config vitest.config.ts && vitest run --config vitest.worker.config.ts",
     "test:worker": "vitest run --config vitest.worker.config.ts",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "deploy:staging": "npm run build:staging && wrangler deploy --env staging",
+    "d1:migrate:staging": "wrangler d1 migrations apply DB --remote --env staging"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.2.1",

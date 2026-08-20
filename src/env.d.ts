@@ -7,6 +7,8 @@ type PortalEnv = {
   GITHUB_OAUTH_CLIENT_ID?: string;
   GITHUB_OAUTH_CLIENT_SECRET?: string;
   SESSION_SECRET?: string;
+  DEPLOYMENT_ENV?: "production" | "staging";
+  E2E_BOOTSTRAP_SECRET?: string;
 };
 
 interface Env extends PortalEnv {}

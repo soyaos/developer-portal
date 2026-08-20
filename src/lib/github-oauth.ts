@@ -3,6 +3,7 @@ const GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token";
 const GITHUB_USER_URL = "https://api.github.com/user";
 const REQUEST_TIMEOUT_MS = 10_000;
 const PRODUCTION_ORIGIN = "https://developer.soyaos.ai";
+const STAGING_ORIGIN = "https://developer-staging.soyaos.ai";
 
 export interface GitHubOAuthConfig {
   clientId: string;
@@ -87,6 +88,9 @@ export function oauthCallbackUrl(requestUrl: URL): string {
   const hostname = requestUrl.hostname.toLowerCase();
   if (hostname === "developer.soyaos.ai") {
     return `${PRODUCTION_ORIGIN}/auth/github/callback`;
+  }
+  if (hostname === "developer-staging.soyaos.ai") {
+    return `${STAGING_ORIGIN}/auth/github/callback`;
   }
   if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]") {
     return new URL("/auth/github/callback", requestUrl.origin).toString();
