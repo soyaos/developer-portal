@@ -113,8 +113,9 @@ The authenticated control plane uses one D1 database with strict
 - A tenant can keep at most three active keys.
 - Usage and trace metadata is retained for 24 hours; prompt and response
   bodies are not stored.
-- Migrations live in `migrations/` and are applied by the deploy workflow
-  before publishing the Worker.
+- Migrations live in `migrations/`. Until the CI token has D1 Edit permission,
+  an operator must apply pending remote migrations before publishing a Worker
+  version that depends on them.
 
 ## Deploy
 
