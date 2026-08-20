@@ -53,7 +53,7 @@ describe("production preflight", () => {
           }),
         }),
       ),
-    ).rejects.toThrow("expected 302");
+    ).rejects.toThrow("cloud-canonical-redirect: expected 302");
   });
 });
 

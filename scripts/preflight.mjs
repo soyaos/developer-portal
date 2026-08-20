@@ -4,8 +4,8 @@ const PORTAL = "https://developer.soyaos.ai";
 const API = "https://api.soyaos.ai";
 const CLOUD = "https://cloud.soyaos.ai";
 const STATUS = "https://status.soyaos.ai";
-const RETRY_ATTEMPTS = 6;
-const RETRY_DELAY_MS = 2_000;
+const RETRY_ATTEMPTS = 13;
+const RETRY_DELAY_MS = 5_000;
 
 function invariant(condition, message) {
   if (!condition) throw new Error(message);
@@ -53,7 +53,12 @@ async function expectNotFound(fetcher, path) {
 export async function runProductionPreflight(fetcher = fetch) {
   const checks = [];
   const check = async (name, operation) => {
-    await operation();
+    try {
+      await operation();
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "unknown failure";
+      throw new Error(`${name}: ${detail}`, { cause: error });
+    }
     checks.push({ name, result: "pass" });
   };
 
