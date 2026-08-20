@@ -298,8 +298,12 @@ export async function verifyApiKey(
   const match = /^sk-soya-([A-Za-z0-9_-]{12})\.([A-Za-z0-9_-]{43})$/.exec(rawKey);
   const id = match?.[1] ?? "invalid_key_";
   const secret = match?.[2] ?? "invalid";
+  // Keys can be used immediately after issuance. Anchor authentication to the
+  // primary so a newly inserted or revoked key is never evaluated on a stale
+  // read replica; subsequent work stays sequentially consistent in this session.
+  const session = db.withSession("first-primary");
   const [stored, candidateDigest] = await Promise.all([
-    db
+    session
       .prepare(
         `SELECT id, tenant_id, secret_digest, scopes_json
          FROM api_keys
@@ -311,7 +315,7 @@ export async function verifyApiKey(
   ]);
   const valid = constantTimeEqual(candidateDigest, stored?.secret_digest ?? "invalid-digest");
   if (!match || !stored || !valid) return null;
-  await db
+  await session
     .prepare("UPDATE api_keys SET last_used_at = ?1 WHERE id = ?2 AND revoked_at IS NULL")
     .bind(now, stored.id)
     .run();
