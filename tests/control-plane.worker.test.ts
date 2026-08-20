@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   createApiKey,
   ensureTenant,
+  expireSyntheticTenantMetadata,
   getUsage,
   listApiKeys,
   listRequestTraces,
   purgeExpiredRequestMetadata,
   recordRequestMetadata,
+  resetSyntheticTenant,
   revokeApiKey,
   verifyApiKey,
 } from "../src/lib/control-plane";
@@ -174,5 +176,48 @@ describe("Cloud control plane", () => {
       .first<{ count: number }>();
     expect(usageCount?.count).toBe(0);
     expect(traceCount?.count).toBe(0);
+  });
+
+  it("limits staging maintenance to the selected synthetic tenant", async () => {
+    const firstGitHubID = 9_007_199_254_740_001;
+    const secondGitHubID = 9_007_199_254_740_002;
+    const first = await ensureTenant(testEnv.DB, user(firstGitHubID, "soyaos-e2e-a"), NOW);
+    const second = await ensureTenant(testEnv.DB, user(secondGitHubID, "soyaos-e2e-b"), NOW);
+    const firstKey = await createApiKey(
+      testEnv.DB,
+      first.id,
+      "first",
+      testEnv.API_KEY_PEPPER,
+      NOW,
+    );
+    await createApiKey(testEnv.DB, second.id, "second", testEnv.API_KEY_PEPPER, NOW);
+    await recordRequestMetadata(testEnv.DB, {
+      requestId: "req_synthetic_expiring",
+      tenantId: first.id,
+      apiKeyId: firstKey.id,
+      traceId: "trace_synthetic_expiring",
+      model: "soya:starter",
+      promptTokens: 1,
+      completionTokens: 1,
+      statusCode: 200,
+      status: "success",
+      latencyMs: 1,
+      createdAt: NOW,
+    });
+
+    await expireSyntheticTenantMetadata(testEnv.DB, firstGitHubID);
+    await expect(listRequestTraces(testEnv.DB, first.id, NOW + 1)).resolves.toEqual([]);
+    const expiredCount = await testEnv.DB
+      .prepare("SELECT COUNT(*) AS count FROM request_traces WHERE tenant_id = ?1")
+      .bind(first.id)
+      .first<{ count: number }>();
+    expect(expiredCount?.count).toBe(0);
+
+    await resetSyntheticTenant(testEnv.DB, firstGitHubID);
+    const tenants = await testEnv.DB
+      .prepare("SELECT github_user_id FROM tenants ORDER BY github_user_id")
+      .all<{ github_user_id: number }>();
+    expect(tenants.results).toEqual([{ github_user_id: secondGitHubID }]);
+    await expect(listApiKeys(testEnv.DB, second.id)).resolves.toHaveLength(1);
   });
 });

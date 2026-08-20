@@ -491,7 +491,43 @@ export async function purgeExpiredRequestMetadata(
   ]);
 }
 
+function syntheticTenantID(githubId: number): string {
+  return `tenant_github_${githubId}`;
+}
+
+export async function resetSyntheticTenant(db: D1Database, githubId: number): Promise<void> {
+  const tenantId = syntheticTenantID(githubId);
+  await db.batch([
+    db.prepare("DELETE FROM inference_reservations WHERE tenant_id = ?1").bind(tenantId),
+    db.prepare("DELETE FROM request_traces WHERE tenant_id = ?1").bind(tenantId),
+    db.prepare("DELETE FROM usage_events WHERE tenant_id = ?1").bind(tenantId),
+    db.prepare("DELETE FROM api_keys WHERE tenant_id = ?1").bind(tenantId),
+    db
+      .prepare("DELETE FROM tenants WHERE id = ?1 AND github_user_id = ?2")
+      .bind(tenantId, githubId),
+  ]);
+}
+
+export async function expireSyntheticTenantMetadata(
+  db: D1Database,
+  githubId: number,
+): Promise<void> {
+  const tenantId = syntheticTenantID(githubId);
+  await db.batch([
+    db.prepare("UPDATE request_traces SET expires_at = 0 WHERE tenant_id = ?1").bind(tenantId),
+    db.prepare("UPDATE usage_events SET expires_at = 0 WHERE tenant_id = ?1").bind(tenantId),
+    db
+      .prepare(
+        `UPDATE inference_reservations
+         SET created_at = 0, expires_at = 0
+         WHERE tenant_id = ?1`,
+      )
+      .bind(tenantId),
+  ]);
+}
+
 export async function getUsage(db: D1Database, tenantId: string, now = Date.now()) {
+  await purgeExpiredRequestMetadata(db, now);
   const from = Date.UTC(
     new Date(now).getUTCFullYear(),
     new Date(now).getUTCMonth(),
@@ -553,6 +589,7 @@ export async function listRequestTraces(
   tenantId: string,
   now = Date.now(),
 ) {
+  await purgeExpiredRequestMetadata(db, now);
   const from = now - METADATA_RETENTION_MS;
   const result = await db
     .prepare(

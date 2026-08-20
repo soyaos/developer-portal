@@ -4,8 +4,11 @@ import {
   isSyntheticIdentity,
   SYNTHETIC_IDENTITIES,
 } from "../../../lib/e2e-auth";
+import {
+  expireSyntheticTenantMetadata,
+  resetSyntheticTenant,
+} from "../../../lib/control-plane";
 import { runtimeEnv } from "../../../lib/runtime-env";
-import { createSession, setSession } from "../../../lib/session";
 
 export const prerender = false;
 
@@ -20,7 +23,7 @@ function json(body: unknown, status: number): Response {
   return Response.json(body, { status, headers: NO_STORE_HEADERS });
 }
 
-export const POST: APIRoute = async ({ request, cookies }) => {
+export const POST: APIRoute = async ({ request }) => {
   const env = runtimeEnv();
   const access = e2eAccess(request, env);
   if (access === "disabled") {
@@ -29,9 +32,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   if (access === "unauthorized") {
     return json({ error: { code: "unauthorized", message: "Authentication required." } }, 401);
   }
-
-  const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
-  if (!contentType.startsWith("application/json")) {
+  if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
     return json(
       { error: { code: "unsupported_media_type", message: "Expected application/json." } },
       415,
@@ -39,31 +40,40 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
 
   let identity: unknown;
+  let mode: unknown;
   try {
     const body: unknown = await request.json();
-    identity =
-      body && typeof body === "object" && !Array.isArray(body)
-        ? (body as { identity?: unknown }).identity
-        : null;
+    if (body && typeof body === "object" && !Array.isArray(body)) {
+      identity = (body as { identity?: unknown }).identity;
+      mode = (body as { mode?: unknown }).mode ?? "reset";
+    }
   } catch {
     return json({ error: { code: "invalid_request", message: "Invalid JSON body." } }, 400);
   }
-
-  if (!isSyntheticIdentity(identity)) {
+  if (!isSyntheticIdentity(identity) || (mode !== "reset" && mode !== "expire")) {
     return json(
-      { error: { code: "invalid_request", message: "Unknown synthetic identity." } },
+      { error: { code: "invalid_request", message: "Unknown maintenance request." } },
       400,
     );
   }
+  if (!env.DB) {
+    return json(
+      { error: { code: "temporarily_unavailable", message: "Storage unavailable." } },
+      503,
+    );
+  }
 
-  const sessionSecret = env.SESSION_SECRET?.trim() ?? "";
   try {
-    const user = SYNTHETIC_IDENTITIES[identity];
-    await setSession(cookies, createSession(user), sessionSecret);
-    return json({ identity, login: user.login }, 200);
+    const githubId = SYNTHETIC_IDENTITIES[identity].id;
+    if (mode === "expire") {
+      await expireSyntheticTenantMetadata(env.DB, githubId);
+    } else {
+      await resetSyntheticTenant(env.DB, githubId);
+    }
+    return json({ identity, mode }, 200);
   } catch {
     return json(
-      { error: { code: "temporarily_unavailable", message: "Session service unavailable." } },
+      { error: { code: "temporarily_unavailable", message: "Maintenance unavailable." } },
       503,
     );
   }

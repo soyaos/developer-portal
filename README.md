@@ -186,7 +186,9 @@ Variables and Secrets**:
 The staging Worker uses the same four secret names with independent values,
 plus `E2E_BOOTSTRAP_SECRET`. The latter protects
 `POST /auth/e2e/session`, which accepts only the fixed `tenant-a` and
-`tenant-b` synthetic identities. The route returns `404` unless
+`tenant-b` synthetic identities. The similarly protected
+`POST /auth/e2e/reset` route can reset those tenants between runs or expire
+their metadata for retention tests. Both routes return `404` unless
 `DEPLOYMENT_ENV` is exactly `staging`, including when the secret is
 accidentally configured on production. Never print the bootstrap secret,
 session cookie, or generated API keys in E2E logs or reports.
