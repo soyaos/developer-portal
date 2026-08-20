@@ -9,6 +9,7 @@ export default defineConfig({
   plugins: [
     cloudflareTest(async () => ({
       main: path.join(root, "tests/worker-entry.ts"),
+      remoteBindings: false,
       wrangler: { configPath: path.join(root, "wrangler.jsonc") },
       miniflare: {
         bindings: {
