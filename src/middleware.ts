@@ -15,6 +15,15 @@ export const onRequest: MiddlewareHandler = async (context, next) => {
   }
 
   const pathname = context.url.pathname.replace(/\/$/, "") || "/";
+  if (pathname.startsWith("/control/v1") && !session) {
+    return Response.json(
+      { error: { code: "unauthorized", message: "Authentication required." } },
+      {
+        status: 401,
+        headers: { "cache-control": "no-store" },
+      },
+    );
+  }
   if (pathname === "/login" && session) {
     const returnTo = sanitizeReturnTo(context.url.searchParams.get("returnTo"));
     return new Response(null, {

@@ -8,72 +8,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import {
-  CreateApiKeyDialog,
-  type CreatedKey,
-  type Scope,
-} from "./CreateApiKeyDialog";
+import { CreateApiKeyDialog, type CreatedKey } from "./CreateApiKeyDialog";
 
-// TODO(soyaos): replace seed + mutations with the real control-plane API:
-//   GET    /control/v0/api-keys
-//   POST   /control/v0/api-keys
-//   DELETE /control/v0/api-keys/{id}
 interface ApiKey {
   id: string;
   name: string;
   prefix: string;
-  scopes: Scope[];
-  createdAt: string; // ISO
-  lastUsedAt: string | null; // ISO or null
+  scopes: string[];
+  createdAt: string;
+  lastUsedAt: string | null;
 }
 
-const SEED: ApiKey[] = [
-  {
-    id: "key_01",
-    name: "unsafe-dev-local",
-    prefix: "sk-soya-dev-9f3b21",
-    scopes: ["agents:invoke", "agents:list", "agents:write"],
-    createdAt: "2026-05-12T09:14:00Z",
-    lastUsedAt: "2026-05-19T16:42:00Z",
-  },
-  {
-    id: "key_02",
-    name: "prod-essay-tutor-edge",
-    prefix: "sk-soya-prod-7c12aa",
-    scopes: ["agents:invoke"],
-    createdAt: "2026-04-28T11:02:00Z",
-    lastUsedAt: "2026-05-19T18:01:00Z",
-  },
-  {
-    id: "key_03",
-    name: "prod-customer-bot",
-    prefix: "sk-soya-prod-3e88f0",
-    scopes: ["agents:invoke", "agents:list"],
-    createdAt: "2026-04-02T07:30:00Z",
-    lastUsedAt: "2026-05-18T22:15:00Z",
-  },
-  {
-    id: "key_04",
-    name: "ci-smoke-test",
-    prefix: "sk-soya-prod-c104a2",
-    scopes: ["agents:invoke"],
-    createdAt: "2026-03-19T15:45:00Z",
-    lastUsedAt: null,
-  },
-  {
-    id: "key_05",
-    name: "ops-rotation-canary",
-    prefix: "sk-soya-prod-58a91d",
-    scopes: ["agents:list"],
-    createdAt: "2026-05-01T13:00:00Z",
-    lastUsedAt: "2026-05-17T03:11:00Z",
-  },
-];
+interface ErrorPayload {
+  error?: { message?: string };
+}
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "never";
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, {
+  return new Date(iso).toLocaleString(undefined, {
     year: "numeric",
     month: "short",
     day: "2-digit",
@@ -82,49 +34,100 @@ function fmtDate(iso: string | null): string {
   });
 }
 
+async function responseError(response: Response): Promise<Error> {
+  try {
+    const payload = (await response.json()) as ErrorPayload;
+    return new Error(payload.error?.message || `Request failed (${response.status}).`);
+  } catch {
+    return new Error(`Request failed (${response.status}).`);
+  }
+}
+
 export function ApiKeysTable() {
-  const [keys, setKeys] = React.useState<ApiKey[]>(SEED);
+  const [keys, setKeys] = React.useState<ApiKey[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
   const [createOpen, setCreateOpen] = React.useState(false);
   const [pendingRevoke, setPendingRevoke] = React.useState<ApiKey | null>(null);
+  const [revoking, setRevoking] = React.useState(false);
 
-  const onCreated = (k: CreatedKey) => {
-    // Insert the newly-issued key at the top. We only ever store the
-    // prefix locally — the raw key lives inside the dialog and is
-    // discarded when it closes.
-    setKeys((prev) => [
-      {
-        id: `key_${(prev.length + 1).toString().padStart(2, "0")}`,
-        name: k.name,
-        prefix: k.prefix,
-        scopes: k.scopes,
-        createdAt: k.createdAt,
-        lastUsedAt: null,
-      },
-      ...prev,
-    ]);
+  const loadKeys = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/control/v1/api-keys", {
+        credentials: "same-origin",
+        headers: { accept: "application/json" },
+      });
+      if (!response.ok) throw await responseError(response);
+      const payload = (await response.json()) as { keys: ApiKey[] };
+      setKeys(payload.keys);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not load API keys.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadKeys();
+  }, [loadKeys]);
+
+  const createKey = async (name: string): Promise<CreatedKey> => {
+    const response = await fetch("/control/v1/api-keys", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (!response.ok) throw await responseError(response);
+    return ((await response.json()) as { key: CreatedKey }).key;
   };
 
-  const confirmRevoke = () => {
-    if (!pendingRevoke) return;
-    setKeys((prev) => prev.filter((k) => k.id !== pendingRevoke.id));
-    setPendingRevoke(null);
+  const confirmRevoke = async () => {
+    if (!pendingRevoke || revoking) return;
+    setRevoking(true);
+    setError(null);
+    try {
+      const response = await fetch(`/control/v1/api-keys/${encodeURIComponent(pendingRevoke.id)}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      if (!response.ok) throw await responseError(response);
+      setKeys((current) => current.filter((key) => key.id !== pendingRevoke.id));
+      setPendingRevoke(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not revoke the key.");
+    } finally {
+      setRevoking(false);
+    }
   };
 
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">API keys</h2>
+          <h2 className="text-lg font-semibold tracking-tight">Active API keys</h2>
           <p className="mt-1 text-xs text-soya-ink/60">
-            Keys grant access to <code>POST /v1/chat/completions</code> and the
-            control plane. Treat them like passwords — rotate often.
+            Keys grant access to <code>GET /v1/models</code> and <code>POST /v1/chat/completions</code>.
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>+ Create new key</Button>
+        <Button onClick={() => setCreateOpen(true)} disabled={loading || keys.length >= 3}>
+          + Create new key
+        </Button>
       </header>
 
-      <div className="overflow-hidden rounded-xl border border-soya-ink/10 bg-white/60">
-        <table className="w-full border-collapse text-left text-sm">
+      {error && (
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-md border border-red-400/40 bg-red-50 px-3 py-2 text-xs text-red-700">
+          <span>{error}</span>
+          <Button size="sm" variant="secondary" onClick={() => void loadKeys()}>
+            Retry
+          </Button>
+        </div>
+      )}
+
+      <div className="overflow-x-auto rounded-xl border border-soya-ink/10 bg-white/60">
+        <table className="w-full min-w-[760px] border-collapse text-left text-sm">
           <thead className="bg-soya-ink/5 text-[11px] uppercase tracking-wider text-soya-ink/60">
             <tr>
               <th className="px-4 py-3 font-medium">Name</th>
@@ -136,55 +139,36 @@ export function ApiKeysTable() {
             </tr>
           </thead>
           <tbody>
-            {keys.length === 0 ? (
+            {loading ? (
               <tr>
-                <td
-                  colSpan={6}
-                  className="px-4 py-10 text-center text-xs text-soya-ink/50"
-                >
-                  No active keys. Click <em>Create new key</em> to issue one.
+                <td colSpan={6} className="px-4 py-10 text-center text-xs text-soya-ink/50">
+                  Loading keys…
+                </td>
+              </tr>
+            ) : keys.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-10 text-center text-xs text-soya-ink/50">
+                  No active keys. Create one to run the first Cloud smoke test.
                 </td>
               </tr>
             ) : (
-              keys.map((k) => (
-                <tr
-                  key={k.id}
-                  className="border-t border-soya-ink/5 hover:bg-soya-accent/5"
-                >
-                  <td className="px-4 py-3 align-top">
-                    <div className="font-medium tracking-tight text-soya-ink">
-                      {k.name}
-                    </div>
-                    {k.name === "unsafe-dev-local" && (
-                      <Badge variant="danger" className="mt-1">
-                        dev only
-                      </Badge>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 align-top font-mono text-xs text-soya-ink/80">
-                    {k.prefix}…
-                  </td>
-                  <td className="px-4 py-3 align-top">
+              keys.map((key) => (
+                <tr key={key.id} className="border-t border-soya-ink/5 hover:bg-soya-accent/5">
+                  <td className="px-4 py-3 font-medium tracking-tight">{key.name}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-soya-ink/80">{key.prefix}…</td>
+                  <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
-                      {k.scopes.map((s) => (
-                        <Badge key={s} variant="accent">
-                          {s}
+                      {key.scopes.map((scope) => (
+                        <Badge key={scope} variant="accent">
+                          {scope}
                         </Badge>
                       ))}
                     </div>
                   </td>
-                  <td className="px-4 py-3 align-top text-xs text-soya-ink/70">
-                    {fmtDate(k.createdAt)}
-                  </td>
-                  <td className="px-4 py-3 align-top text-xs text-soya-ink/70">
-                    {fmtDate(k.lastUsedAt)}
-                  </td>
-                  <td className="px-4 py-3 text-right align-top">
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => setPendingRevoke(k)}
-                    >
+                  <td className="px-4 py-3 text-xs text-soya-ink/70">{fmtDate(key.createdAt)}</td>
+                  <td className="px-4 py-3 text-xs text-soya-ink/70">{fmtDate(key.lastUsedAt)}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Button size="sm" variant="danger" onClick={() => setPendingRevoke(key)}>
                       Revoke
                     </Button>
                   </td>
@@ -195,32 +179,32 @@ export function ApiKeysTable() {
         </table>
       </div>
 
+      {keys.length >= 3 && (
+        <p className="text-xs text-soya-ink/60">Preview limit reached: revoke a key before creating another.</p>
+      )}
+
       <CreateApiKeyDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        onCreated={onCreated}
+        onCreate={createKey}
+        onCreated={(key) => setKeys((current) => [key, ...current])}
       />
 
-      <Dialog
-        open={pendingRevoke !== null}
-        onOpenChange={(o) => !o && setPendingRevoke(null)}
-      >
+      <Dialog open={pendingRevoke !== null} onOpenChange={(open) => !open && setPendingRevoke(null)}>
         <DialogHeader>
           <DialogTitle>Revoke this key?</DialogTitle>
         </DialogHeader>
         <DialogBody>
           <p className="text-sm text-soya-ink/80">
-            Revoking <code>{pendingRevoke?.name}</code> immediately invalidates
-            it. Any service still using the key will start receiving
-            <code className="ml-1">401 unauthorized</code>.
+            Revoking <code>{pendingRevoke?.name}</code> invalidates it immediately. This cannot be undone.
           </p>
         </DialogBody>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => setPendingRevoke(null)}>
+          <Button variant="ghost" onClick={() => setPendingRevoke(null)} disabled={revoking}>
             Cancel
           </Button>
-          <Button variant="danger" onClick={confirmRevoke}>
-            Revoke key
+          <Button variant="danger" onClick={() => void confirmRevoke()} disabled={revoking}>
+            {revoking ? "Revoking…" : "Revoke key"}
           </Button>
         </DialogFooter>
       </Dialog>

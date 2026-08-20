@@ -2,7 +2,7 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "soyaos-developer-portal",
   "main": "@astrojs/cloudflare/entrypoints/server",
-  "compatibility_date": "2026-08-12",
+  "compatibility_date": "2026-08-20",
   "workers_dev": false,
   "preview_urls": false,
   "routes": [
@@ -11,7 +11,16 @@
       "custom_domain": true
     }
   ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "soyaos-cloud-preview",
+      "database_id": "c6876143-7cdf-426d-9aa9-58c6dfd74f78",
+      "migrations_dir": "migrations"
+    }
+  ],
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "head_sampling_rate": 1
   }
 }

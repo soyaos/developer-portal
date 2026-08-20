@@ -10,75 +10,54 @@ import {
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 
-export type Scope = "agents:invoke" | "agents:list" | "agents:write";
-
-export const ALL_SCOPES: Array<{ id: Scope; label: string; hint: string }> = [
-  { id: "agents:invoke", label: "agents:invoke", hint: "Call /v1/chat against any soya:* model." },
-  { id: "agents:list", label: "agents:list",   hint: "Read-only listing of Agents in this org." },
-  { id: "agents:write", label: "agents:write", hint: "Create, update and delete Agent definitions." },
-];
-
 export interface CreatedKey {
+  id: string;
   name: string;
-  scopes: Scope[];
+  scopes: string[];
   prefix: string;
-  rawKey: string; // one-time, never shown again
-  createdAt: string; // ISO
+  rawKey: string;
+  createdAt: string;
+  lastUsedAt: string | null;
 }
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCreate: (name: string) => Promise<CreatedKey>;
   onCreated: (key: CreatedKey) => void;
 }
 
-function makeRawKey(): string {
-  // TODO(soyaos): swap with the value returned from
-  //   POST /control/v0/api-keys
-  // The control plane signs raw keys with our HMAC issuing key and stores
-  // only the bcrypt hash; the raw string is never persisted client-side.
-  const random =
-    typeof crypto.randomUUID === "function"
-      ? crypto.randomUUID().replace(/-/g, "")
-      : Math.random().toString(36).slice(2).padEnd(24, "0");
-  return `sk-soya-prod-${random.slice(0, 12)}`;
-}
-
-export function CreateApiKeyDialog({ open, onOpenChange, onCreated }: Props) {
+export function CreateApiKeyDialog({ open, onOpenChange, onCreate, onCreated }: Props) {
   const [name, setName] = React.useState("");
-  const [scopes, setScopes] = React.useState<Scope[]>(["agents:invoke"]);
   const [issued, setIssued] = React.useState<CreatedKey | null>(null);
   const [copied, setCopied] = React.useState(false);
+  const [submitting, setSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
-  // Reset internal state whenever the dialog opens fresh.
   React.useEffect(() => {
     if (open) {
       setName("");
-      setScopes(["agents:invoke"]);
       setIssued(null);
       setCopied(false);
+      setSubmitting(false);
+      setError(null);
     }
   }, [open]);
 
-  const toggleScope = (s: Scope) => {
-    setScopes((prev) =>
-      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
-    );
-  };
-
-  const submit = () => {
+  const submit = async () => {
     const trimmed = name.trim();
-    if (!trimmed || scopes.length === 0) return;
-    const raw = makeRawKey();
-    const created: CreatedKey = {
-      name: trimmed,
-      scopes,
-      prefix: raw.slice(0, 16),
-      rawKey: raw,
-      createdAt: new Date().toISOString(),
-    };
-    setIssued(created);
-    onCreated(created);
+    if (!trimmed || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const created = await onCreate(trimmed);
+      setIssued(created);
+      onCreated(created);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not create the key.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const copy = async () => {
@@ -88,40 +67,34 @@ export function CreateApiKeyDialog({ open, onOpenChange, onCreated }: Props) {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
-      // Clipboard API can fail in non-secure contexts — leave the key
-      // visible so the user can select-and-copy manually.
+      // The raw key stays visible for manual copy when Clipboard API is unavailable.
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogHeader>
-        <DialogTitle>
-          {issued ? "Your new API key" : "Create new API key"}
-        </DialogTitle>
+        <DialogTitle>{issued ? "Your new API key" : "Create new API key"}</DialogTitle>
         <p className="mt-1 text-xs text-soya-ink/60">
           {issued
-            ? "Copy this key now — for security reasons it will never be shown again."
-            : "Pick a memorable name and the scopes this key should be allowed to use."}
+            ? "Copy this key now — it will never be shown again."
+            : "The Preview key can list models and call chat completions."}
         </p>
       </DialogHeader>
 
       {issued ? (
         <DialogBody className="space-y-4">
           <div className="rounded-md border border-red-400/40 bg-red-50 px-3 py-2 text-xs text-red-700">
-            Make sure to copy this key now — it will never be shown again.
+            This is the only time SoyaOS will display the raw key.
           </div>
-
           <div className="rounded-md border border-soya-ink/10 bg-white/80 p-3 font-mono text-xs break-all">
             {issued.rawKey}
           </div>
-
-          <div className="flex items-center justify-between text-xs text-soya-ink/60">
-            <span>
-              Scopes:{" "}
-              {issued.scopes.map((s) => (
-                <Badge key={s} variant="accent" className="mr-1">
-                  {s}
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-soya-ink/60">
+            <span className="flex flex-wrap gap-1">
+              {issued.scopes.map((scope) => (
+                <Badge key={scope} variant="accent">
+                  {scope}
                 </Badge>
               ))}
             </span>
@@ -133,47 +106,25 @@ export function CreateApiKeyDialog({ open, onOpenChange, onCreated }: Props) {
       ) : (
         <DialogBody className="space-y-4">
           <label className="block">
-            <span className="text-xs font-medium tracking-tight text-soya-ink/80">
-              Key name
-            </span>
+            <span className="text-xs font-medium tracking-tight text-soya-ink/80">Key name</span>
             <Input
               className="mt-1"
-              placeholder="prod-essay-tutor-edge"
+              placeholder="preview-smoke-test"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              maxLength={64}
+              onChange={(event) => setName(event.target.value)}
+              onKeyDown={(event) => event.key === "Enter" && void submit()}
               autoFocus
             />
             <span className="mt-1 block text-[11px] text-soya-ink/50">
-              Shown in lists and audit logs. Doesn&apos;t need to be unique.
+              1–64 characters. You can keep at most three active keys.
             </span>
           </label>
-
-          <fieldset>
-            <legend className="text-xs font-medium tracking-tight text-soya-ink/80">
-              Scopes
-            </legend>
-            <div className="mt-2 space-y-2">
-              {ALL_SCOPES.map((s) => (
-                <label
-                  key={s.id}
-                  className="flex items-start gap-3 rounded-md border border-soya-ink/10 bg-white/50 px-3 py-2 text-xs hover:border-soya-accent/60"
-                >
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 h-3.5 w-3.5 accent-soya-accent"
-                    checked={scopes.includes(s.id)}
-                    onChange={() => toggleScope(s.id)}
-                  />
-                  <span>
-                    <span className="font-medium tracking-tight text-soya-ink">
-                      {s.label}
-                    </span>
-                    <span className="ml-2 text-soya-ink/60">{s.hint}</span>
-                  </span>
-                </label>
-              ))}
+          {error && (
+            <div role="alert" className="rounded-md border border-red-400/40 bg-red-50 px-3 py-2 text-xs text-red-700">
+              {error}
             </div>
-          </fieldset>
+          )}
         </DialogBody>
       )}
 
@@ -182,14 +133,11 @@ export function CreateApiKeyDialog({ open, onOpenChange, onCreated }: Props) {
           <Button onClick={() => onOpenChange(false)}>Done</Button>
         ) : (
           <>
-            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
               Cancel
             </Button>
-            <Button
-              onClick={submit}
-              disabled={!name.trim() || scopes.length === 0}
-            >
-              Create key
+            <Button onClick={() => void submit()} disabled={!name.trim() || submitting}>
+              {submitting ? "Creating…" : "Create key"}
             </Button>
           </>
         )}

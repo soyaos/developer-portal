@@ -4,17 +4,14 @@
 
 # developer-portal
 
-> [!WARNING]
-> **开发中，尚未正式发布（Development Preview — Not Released）**
+> [!NOTE]
+> **v0.2.0 Public Preview**
 >
-> 本项目仍在积极开发，功能和接口尚未稳定，随时可能发生不向后兼容的
-> breaking changes。请勿将当前版本用于生产环境，也不要依赖现有 API、
-> 配置格式或行为保持不变。
+> 免费、单区域、best-effort、无 SLA。Preview 期间接口仍可能发生不向后
+> 兼容的变更，不建议承载关键生产工作负载。
 >
-> This project is under active development and has not been officially
-> released. Features and interfaces are unstable and may introduce breaking
-> changes without notice. Do not use the current version in production or
-> rely on existing APIs, configuration formats, or behavior remaining stable.
+> Free single-region preview, best effort, no SLA. Interfaces may still change
+> without notice and should not be used for critical production workloads.
 
 Source for **[developer.soyaos.ai](https://developer.soyaos.ai)** — the
 SoyaOS Developer Portal.
@@ -22,12 +19,12 @@ SoyaOS Developer Portal.
 It hosts four surfaces that all share a single Astro + React + Tailwind
 codebase:
 
-| Surface              | Path                | Status (alpha) |
+| Surface              | Path                | Status (Public Preview) |
 | -------------------- | ------------------- | -------------- |
 | API Reference        | `/docs`             | iframe to docs.soyaos.ai |
-| API Keys             | `/api-keys`         | placeholder    |
+| API Keys             | `/api-keys`         | D1-backed      |
 | Webhook Debugger     | `/webhook-debugger` | placeholder    |
-| Usage Dashboard      | `/usage`            | placeholder    |
+| Usage Dashboard      | `/usage`            | D1-backed metadata |
 
 ## Stack
 
@@ -69,10 +66,16 @@ To run the flow end-to-end locally, create a separate development OAuth App:
    GITHUB_OAUTH_CLIENT_ID=your-client-id
    GITHUB_OAUTH_CLIENT_SECRET=your-client-secret
    SESSION_SECRET=the-output-from-openssl-rand-base64-48
+   API_KEY_PEPPER=another-independent-random-48-byte-value
    ```
    Generate the last value with `openssl rand -base64 48` and paste its output
    after `SESSION_SECRET=`.
-4. Restart `npm run dev`. Click **Sign in** → **Continue with GitHub**.
+4. Apply the local D1 schema, then start the portal:
+   ```bash
+   npx wrangler d1 migrations apply soyaos-cloud-preview --local
+   npm run dev
+   ```
+   Click **Sign in** → **Continue with GitHub**.
 
 Do not reuse the production OAuth App for localhost: its registered callback
 is `https://developer.soyaos.ai/auth/github/callback`. Unit tests mock GitHub
@@ -100,22 +103,18 @@ Production is deployed to **Cloudflare Workers**:
 - Custom domain: `developer.soyaos.ai`.
 - Runtime: `@astrojs/cloudflare` on Workers.
 
-## Alpha mock banner
+## Cloud control plane
 
-Every page in this portal shows a yellow `Alpha preview` banner at the
-top of the layout (`src/layouts/Base.astro`). It is gated by
-`import.meta.env.PUBLIC_ALPHA_MOCK`; the CI deploy workflow sets it to
-`"true"`. Once the control plane RPC is wired in EPIC 6 and the portal
-is no longer serving mock data, flip the env var to `"false"` (or
-remove it from `.github/workflows/deploy.yml`) and the banner
-disappears.
+The authenticated control plane uses one D1 database with strict
+`tenant_id` filters. Each GitHub numeric ID maps to one personal tenant.
 
-Tracking checklist for "stop being mock":
-
-- `/api-keys` → wire `POST /control/v0/auth/keys`
-- `/webhook-debugger` → subscribe to `webhook.event.v1` over WS
-- `/usage` → call `GET /control/v0/usage`
-- Banner stays until **all three** land.
+- API keys follow `sk-soya-<key_id>.<secret>` and are shown once.
+- D1 stores only an HMAC-SHA-256 digest derived with `API_KEY_PEPPER`.
+- A tenant can keep at most three active keys.
+- Usage and trace metadata is retained for 24 hours; prompt and response
+  bodies are not stored.
+- Migrations live in `migrations/` and are applied by the deploy workflow
+  before publishing the Worker.
 
 ## Deploy
 
@@ -139,13 +138,11 @@ Variables and Secrets**:
 | `GITHUB_OAUTH_CLIENT_ID`     | Client ID for the production GitHub OAuth App.             |
 | `GITHUB_OAUTH_CLIENT_SECRET` | Encrypted OAuth client secret; never exposed to the client. |
 | `SESSION_SECRET`             | At least 32 random bytes; rotation invalidates sessions.   |
+| `API_KEY_PEPPER`             | At least 32 random bytes; rotation invalidates API keys.   |
 
 The session cookie is named `__Host-soyaos_session` and is AES-GCM encrypted
 with a 12-hour maximum lifetime. It is issued with `HttpOnly`, `Secure`,
 `SameSite=Lax`, and `Path=/`.
-
-Optional: set repository variable `PUBLIC_ALPHA_MOCK=false` (or edit
-the workflow) once the real control plane is wired in.
 
 ## License
 

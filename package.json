@@ -15,7 +15,8 @@
     "cf-typegen": "wrangler types worker-configuration.d.ts",
     "check": "wrangler types worker-configuration.d.ts && astro check",
     "lint": "astro check",
-    "test": "vitest run",
+    "test": "vitest run --config vitest.config.ts && vitest run --config vitest.worker.config.ts",
+    "test:worker": "vitest run --config vitest.worker.config.ts",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
     "@types/node": "^24.13.3",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",

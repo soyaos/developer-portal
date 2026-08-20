@@ -203,6 +203,22 @@ describe("auth middleware", () => {
     expect(await response.text()).toBe("public content");
   });
 
+  it("returns JSON 401 for anonymous control-plane requests", async () => {
+    const response = (await onRequest(
+      routeContext(
+        "https://developer.soyaos.ai/control/v1/api-keys",
+        new MemoryCookies(),
+        ENV,
+      ),
+      async () => new Response("must not run"),
+    )) as Response;
+    expect(response.status).toBe(401);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({
+      error: { code: "unauthorized", message: "Authentication required." },
+    });
+  });
+
   it("allows a valid session and prevents shared caching", async () => {
     const cookies = new MemoryCookies();
     await setSession(

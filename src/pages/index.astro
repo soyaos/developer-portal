@@ -11,35 +11,39 @@ const cards = [
     title: "Playground",
     body: "In-browser chat playground against soya:* virtual models with token / cost / trace inspector.",
     href: "#",
+    status: "Coming soon",
   },
   {
     title: "API Keys",
     body: "Issue, rotate and revoke keys; scope by edition and Agent.",
-    href: "#",
+    href: "/api-keys",
+    status: "Open",
   },
   {
     title: "Webhook Debugger",
     body: "Tail Scope events, replay deliveries, inspect signing headers.",
-    href: "#",
+    href: "/webhook-debugger",
+    status: "Coming soon",
   },
   {
     title: "Usage Dashboard",
     body: "Per-key quota, latency and spend; export to CSV / Prometheus.",
-    href: "#",
+    href: "/usage",
+    status: "Open",
   },
 ];
 ---
 
 <Base>
   <section class="py-12">
-    <p class="text-xs uppercase tracking-[0.2em] text-soya-accent">Alpha</p>
+    <p class="text-xs uppercase tracking-[0.2em] text-soya-accent">v0.2.0 Public Preview</p>
     <h1 class="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">
       SoyaOS Developer Portal
     </h1>
     <p class="mt-4 max-w-2xl text-soya-ink/70">
       One place to read the API reference, try the playground, manage keys,
-      debug webhooks and watch your quota. Everything you see below is a
-      placeholder — we are shipping these surfaces in the alpha window.
+      debug webhooks and watch your quota. GitHub sign-in, personal tenants,
+      API keys and usage metadata are now backed by the Cloud control plane.
     </p>
   </section>
 
@@ -53,7 +57,7 @@ const cards = [
           <h2 class="text-lg font-medium tracking-tight">{card.title}</h2>
           <p class="mt-2 text-sm text-soya-ink/70">{card.body}</p>
           <p class="mt-4 text-xs font-medium uppercase tracking-wider text-soya-accent/80 group-hover:text-soya-accent">
-            Coming soon &rarr;
+            {card.status ?? "Open"} &rarr;
           </p>
         </a>
       ))

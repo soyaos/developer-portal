@@ -11,6 +11,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    exclude: ["tests/**/*.worker.test.ts", "node_modules/**"],
     restoreMocks: true,
   },
 });
