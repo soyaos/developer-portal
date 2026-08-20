@@ -100,8 +100,31 @@ Production is deployed to **Cloudflare Workers**:
 
 - Build command: `npm run build`.
 - Output directory: `dist/`.
-- Custom domain: `developer.soyaos.ai`.
+- Custom domains: `developer.soyaos.ai` and `api.soyaos.ai`.
 - Runtime: `@astrojs/cloudflare` on Workers.
+
+## Cloud inference API
+
+The Public Preview exposes an OpenAI-compatible subset at
+`https://api.soyaos.ai`. Create an API key in the Developer Portal, then run:
+
+```bash
+export SOYAOS_API_KEY='sk-soya-...'
+curl https://api.soyaos.ai/v1/chat/completions \
+  --header "Authorization: Bearer ${SOYAOS_API_KEY}" \
+  --header 'Content-Type: application/json' \
+  --data '{"model":"soya:starter","messages":[{"role":"user","content":"Reply with: cloud ready"}]}'
+```
+
+Supported endpoints are `GET /v1/models` and
+`POST /v1/chat/completions`. The public `soya:starter` alias is backed by a
+Workers AI model without exposing the provider model ID. Streaming uses
+OpenAI-style server-sent events and terminates with `data: [DONE]`.
+
+Preview quotas are enforced per tenant in D1: 20 requests/minute, two
+concurrent requests, 100 requests/day, and 100,000 reserved tokens/day.
+Responses include `x-request-id`; quota errors also include `retry-after`.
+Prompt and completion bodies are never persisted.
 
 ## Cloud control plane
 

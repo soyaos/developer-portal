@@ -63,7 +63,11 @@ describe("Cloud control plane", () => {
     expect(stored?.key_prefix).toBe(created.prefix);
     await expect(
       verifyApiKey(testEnv.DB, created.rawKey, testEnv.API_KEY_PEPPER, NOW + 1),
-    ).resolves.toEqual({ keyId: created.id, tenantId: tenant.id });
+    ).resolves.toEqual({
+      keyId: created.id,
+      tenantId: tenant.id,
+      scopes: ["models:read", "chat:write"],
+    });
 
     await revokeApiKey(testEnv.DB, tenant.id, created.id, NOW + 2);
     await expect(
@@ -88,7 +92,11 @@ describe("Cloud control plane", () => {
     await revokeApiKey(testEnv.DB, bob.id, first.id, NOW + 4);
     await expect(
       verifyApiKey(testEnv.DB, first.rawKey, testEnv.API_KEY_PEPPER, NOW + 5),
-    ).resolves.toEqual({ keyId: first.id, tenantId: alice.id });
+    ).resolves.toEqual({
+      keyId: first.id,
+      tenantId: alice.id,
+      scopes: ["models:read", "chat:write"],
+    });
   });
 
   it("aggregates usage per tenant and exposes only 24-hour trace metadata", async () => {

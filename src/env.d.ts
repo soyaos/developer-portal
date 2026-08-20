@@ -2,6 +2,7 @@
 
 type PortalEnv = {
   DB?: D1Database;
+  AI?: Ai;
   API_KEY_PEPPER?: string;
   GITHUB_OAUTH_CLIENT_ID?: string;
   GITHUB_OAUTH_CLIENT_SECRET?: string;

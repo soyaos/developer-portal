@@ -9,8 +9,16 @@
     {
       "pattern": "developer.soyaos.ai",
       "custom_domain": true
+    },
+    {
+      "pattern": "api.soyaos.ai",
+      "custom_domain": true
     }
   ],
+  "ai": {
+    "binding": "AI",
+    "remote": true
+  },
   "d1_databases": [
     {
       "binding": "DB",

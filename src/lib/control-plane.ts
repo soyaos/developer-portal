@@ -4,6 +4,7 @@ const ACTIVE_KEY_LIMIT = 3;
 const REQUEST_LIMIT_PER_DAY = 100;
 const TOKEN_LIMIT_PER_DAY = 100_000;
 const METADATA_RETENTION_MS = 24 * 60 * 60 * 1000;
+const INFERENCE_LEASE_MS = 5 * 60 * 1000;
 const KEY_SCOPES = ["models:read", "chat:write"] as const;
 
 export class ControlPlaneError extends Error {
@@ -11,6 +12,7 @@ export class ControlPlaneError extends Error {
     readonly status: number,
     readonly code: string,
     message: string,
+    readonly retryAfter?: number,
   ) {
     super(message);
     this.name = "ControlPlaneError";
@@ -48,6 +50,7 @@ interface StoredApiKeyRow {
   id: string;
   tenant_id: string;
   secret_digest: string;
+  scopes_json: string;
 }
 
 interface UsageTotalRow {
@@ -87,6 +90,21 @@ export interface RequestMetadata {
   status: "success" | "error";
   errorCode?: string | null;
   latencyMs: number;
+  createdAt?: number;
+}
+
+export interface VerifiedApiKey {
+  keyId: string;
+  tenantId: string;
+  scopes: string[];
+}
+
+export interface InferenceReservation {
+  requestId: string;
+  tenantId: string;
+  apiKeyId: string;
+  model: string;
+  reservedTokens: number;
   createdAt?: number;
 }
 
@@ -276,14 +294,14 @@ export async function verifyApiKey(
   rawKey: string,
   pepper: string,
   now = Date.now(),
-): Promise<{ keyId: string; tenantId: string } | null> {
+): Promise<VerifiedApiKey | null> {
   const match = /^sk-soya-([A-Za-z0-9_-]{12})\.([A-Za-z0-9_-]{43})$/.exec(rawKey);
   const id = match?.[1] ?? "invalid_key_";
   const secret = match?.[2] ?? "invalid";
   const [stored, candidateDigest] = await Promise.all([
     db
       .prepare(
-        `SELECT id, tenant_id, secret_digest
+        `SELECT id, tenant_id, secret_digest, scopes_json
          FROM api_keys
          WHERE id = ?1 AND revoked_at IS NULL`,
       )
@@ -297,16 +315,99 @@ export async function verifyApiKey(
     .prepare("UPDATE api_keys SET last_used_at = ?1 WHERE id = ?2 AND revoked_at IS NULL")
     .bind(now, stored.id)
     .run();
-  return { keyId: stored.id, tenantId: stored.tenant_id };
+  let scopes: string[] = [];
+  try {
+    const parsed: unknown = JSON.parse(stored.scopes_json);
+    if (Array.isArray(parsed) && parsed.every((scope) => typeof scope === "string")) {
+      scopes = parsed;
+    }
+  } catch {
+    return null;
+  }
+  return { keyId: stored.id, tenantId: stored.tenant_id, scopes };
 }
 
-export async function recordRequestMetadata(
+function quotaError(error: unknown, now: number): ControlPlaneError | null {
+  const message = error instanceof Error ? error.message : "";
+  if (message.includes("inference_concurrency_limit")) {
+    return new ControlPlaneError(429, "concurrency_limit", "Concurrent request limit reached.", 5);
+  }
+  if (message.includes("inference_rpm_limit")) {
+    return new ControlPlaneError(429, "rate_limit", "Per-minute request limit reached.", 60);
+  }
+  const secondsUntilReset = Math.max(
+    1,
+    Math.ceil((Date.UTC(
+      new Date(now).getUTCFullYear(),
+      new Date(now).getUTCMonth(),
+      new Date(now).getUTCDate() + 1,
+    ) - now) / 1000),
+  );
+  if (message.includes("inference_daily_request_limit")) {
+    return new ControlPlaneError(
+      429,
+      "daily_request_limit",
+      "Daily request limit reached.",
+      secondsUntilReset,
+    );
+  }
+  if (message.includes("inference_daily_token_limit")) {
+    return new ControlPlaneError(
+      429,
+      "daily_token_limit",
+      "Daily token limit reached.",
+      secondsUntilReset,
+    );
+  }
+  return null;
+}
+
+export async function beginInference(
+  db: D1Database,
+  reservation: InferenceReservation,
+): Promise<void> {
+  const createdAt = reservation.createdAt ?? Date.now();
+  const dayStart = createdAt - (createdAt % (24 * 60 * 60 * 1000));
+  await db
+    .prepare(
+      `DELETE FROM inference_reservations
+       WHERE created_at < ?1
+         AND (status != 'active' OR expires_at <= ?2)`,
+    )
+    .bind(dayStart, createdAt)
+    .run();
+  try {
+    await db
+      .prepare(
+        `INSERT INTO inference_reservations (
+          request_id, tenant_id, api_key_id, model, reserved_tokens,
+          created_at, expires_at
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`,
+      )
+      .bind(
+        reservation.requestId,
+        reservation.tenantId,
+        reservation.apiKeyId,
+        reservation.model,
+        reservation.reservedTokens,
+        createdAt,
+        createdAt + INFERENCE_LEASE_MS,
+      )
+      .run();
+  } catch (error) {
+    const mapped = quotaError(error, createdAt);
+    if (mapped) throw mapped;
+    throw error;
+  }
+}
+
+function requestMetadataStatements(
   db: D1Database,
   metadata: RequestMetadata,
-): Promise<void> {
+): D1PreparedStatement[] {
   const createdAt = metadata.createdAt ?? Date.now();
   const expiresAt = createdAt + METADATA_RETENTION_MS;
-  await db.batch([
+  return [
     db
       .prepare(
         `INSERT INTO usage_events (
@@ -345,6 +446,31 @@ export async function recordRequestMetadata(
         createdAt,
         expiresAt,
       ),
+  ];
+}
+
+export async function recordRequestMetadata(
+  db: D1Database,
+  metadata: RequestMetadata,
+): Promise<void> {
+  await db.batch(requestMetadataStatements(db, metadata));
+}
+
+export async function finalizeInference(
+  db: D1Database,
+  metadata: RequestMetadata,
+): Promise<void> {
+  const completedAt = Date.now();
+  const totalTokens = metadata.promptTokens + metadata.completionTokens;
+  await db.batch([
+    db
+      .prepare(
+        `UPDATE inference_reservations
+         SET status = ?1, total_tokens = ?2, completed_at = ?3
+         WHERE request_id = ?4 AND tenant_id = ?5 AND status = 'active'`,
+      )
+      .bind(metadata.status, totalTokens, completedAt, metadata.requestId, metadata.tenantId),
+    ...requestMetadataStatements(db, metadata),
   ]);
 }
 
@@ -355,6 +481,9 @@ export async function purgeExpiredRequestMetadata(
   await db.batch([
     db.prepare("DELETE FROM request_traces WHERE expires_at <= ?1").bind(now),
     db.prepare("DELETE FROM usage_events WHERE expires_at <= ?1").bind(now),
+    db
+      .prepare("DELETE FROM inference_reservations WHERE created_at < ?1")
+      .bind(now - METADATA_RETENTION_MS),
   ]);
 }
 

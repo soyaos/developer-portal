@@ -29,7 +29,11 @@ export function json(data: unknown, init: ResponseInit = {}): Response {
 
 export function controlError(error: unknown): Response {
   if (error instanceof ControlPlaneError) {
-    return json({ error: { code: error.code, message: error.message } }, { status: error.status });
+    const headers = error.retryAfter ? { "retry-after": String(error.retryAfter) } : undefined;
+    return json(
+      { error: { code: error.code, message: error.message } },
+      { status: error.status, headers },
+    );
   }
   console.error(
     JSON.stringify({
