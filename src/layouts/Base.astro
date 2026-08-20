@@ -8,7 +8,7 @@ interface Props {
 
 const {
   title = "SoyaOS Developer Portal",
-  description = "API Reference, Playground, API Keys, Webhook Debugger and Usage Dashboard for SoyaOS.",
+  description = "API Reference, Playground, API Keys and Usage Dashboard for SoyaOS Cloud Public Preview.",
 } = Astro.props;
 
 const user = Astro.locals.user;
@@ -40,7 +40,7 @@ const user = Astro.locals.user;
         <nav class="text-sm flex items-center gap-6">
           <a href="/docs" class="hover:text-soya-accent">Docs</a>
           <a href="/api-keys" class="hover:text-soya-accent">API Keys</a>
-          <a href="/webhook-debugger" class="hover:text-soya-accent">Webhooks</a>
+          <a href="/playground" class="hover:text-soya-accent">Playground</a>
           <a href="/usage" class="hover:text-soya-accent">Usage</a>
           <a href="/" class="hover:text-soya-accent">Dashboard</a>
           {user ? (
@@ -75,6 +75,10 @@ const user = Astro.locals.user;
           <a href="https://soyaos.ai" class="hover:text-soya-accent">soyaos.ai</a>
           &middot;
           <a href="https://docs.soyaos.ai" class="hover:text-soya-accent">docs.soyaos.ai</a>
+          &middot;
+          <a href="/terms" class="hover:text-soya-accent">Terms</a>
+          &middot;
+          <a href="/privacy" class="hover:text-soya-accent">Privacy</a>
         </span>
       </div>
     </footer>

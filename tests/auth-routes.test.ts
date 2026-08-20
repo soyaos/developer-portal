@@ -194,6 +194,15 @@ describe("auth middleware", () => {
     );
   });
 
+  it("protects the live Playground behind GitHub sign-in", async () => {
+    const response = (await onRequest(
+      routeContext("https://developer.soyaos.ai/playground", new MemoryCookies(), ENV),
+      async () => new Response("playground"),
+    )) as Response;
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/login?returnTo=%2Fplayground");
+  });
+
   it("allows public pages without a session", async () => {
     const response = (await onRequest(
       routeContext("https://developer.soyaos.ai/docs", new MemoryCookies(), ENV),

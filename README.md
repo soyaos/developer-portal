@@ -21,10 +21,10 @@ codebase:
 
 | Surface              | Path                | Status (Public Preview) |
 | -------------------- | ------------------- | -------------- |
-| API Reference        | `/docs`             | iframe to docs.soyaos.ai |
-| API Keys             | `/api-keys`         | D1-backed      |
-| Webhook Debugger     | `/webhook-debugger` | placeholder    |
-| Usage Dashboard      | `/usage`            | D1-backed metadata |
+| API Reference        | `/docs`       | iframe to docs.soyaos.ai |
+| Playground           | `/playground` | live browser inference   |
+| API Keys             | `/api-keys`   | D1-backed                |
+| Usage and Traces     | `/usage`      | D1-backed metadata       |
 
 ## Stack
 

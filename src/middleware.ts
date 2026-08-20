@@ -3,7 +3,12 @@ import { sanitizeReturnTo } from "./lib/github-oauth";
 import { runtimeEnv } from "./lib/runtime-env";
 import { clearSession, getSession } from "./lib/session";
 
-const PROTECTED_PATHS = new Set(["/api-keys", "/usage", "/webhook-debugger"]);
+const PROTECTED_PATHS = new Set([
+  "/api-keys",
+  "/playground",
+  "/usage",
+  "/webhook-debugger",
+]);
 
 export const onRequest: MiddlewareHandler = async (context, next) => {
   const secret = runtimeEnv().SESSION_SECRET?.trim() ?? "";

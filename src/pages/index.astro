@@ -9,25 +9,18 @@ const cards = [
   },
   {
     title: "Playground",
-    body: "In-browser chat playground against soya:* virtual models with token / cost / trace inspector.",
-    href: "#",
-    status: "Coming soon",
+    body: "Run real text inference against soya:* models and inspect request IDs and token usage.",
+    href: "/playground",
   },
   {
     title: "API Keys",
-    body: "Issue, rotate and revoke keys; scope by edition and Agent.",
+    body: "Create and revoke Preview keys. Raw keys are displayed once and never stored in recoverable form.",
     href: "/api-keys",
     status: "Open",
   },
   {
-    title: "Webhook Debugger",
-    body: "Tail Scope events, replay deliveries, inspect signing headers.",
-    href: "/webhook-debugger",
-    status: "Coming soon",
-  },
-  {
     title: "Usage Dashboard",
-    body: "Per-key quota, latency and spend; export to CSV / Prometheus.",
+    body: "View real daily quota, per-key usage and 24-hour request trace metadata.",
     href: "/usage",
     status: "Open",
   },
@@ -42,8 +35,8 @@ const cards = [
     </h1>
     <p class="mt-4 max-w-2xl text-soya-ink/70">
       One place to read the API reference, try the playground, manage keys,
-      debug webhooks and watch your quota. GitHub sign-in, personal tenants,
-      API keys and usage metadata are now backed by the Cloud control plane.
+      and watch your quota. GitHub sign-in, personal tenants, API keys,
+      inference and usage metadata are backed by the live Cloud control plane.
     </p>
   </section>
 

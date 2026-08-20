@@ -73,6 +73,7 @@ export function UsagePanel() {
   const [traces, setTraces] = React.useState<Trace[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [requestFilter, setRequestFilter] = React.useState("");
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -101,6 +102,11 @@ export function UsagePanel() {
     void load();
   }, [load]);
 
+  React.useEffect(() => {
+    const requestId = new URLSearchParams(window.location.search).get("requestId");
+    if (requestId) setRequestFilter(requestId);
+  }, []);
+
   if (loading) {
     return <p className="rounded-xl border border-soya-ink/10 bg-white/60 p-8 text-center text-sm text-soya-ink/60">Loading usage…</p>;
   }
@@ -113,6 +119,11 @@ export function UsagePanel() {
       </div>
     );
   }
+
+  const normalizedFilter = requestFilter.trim();
+  const visibleTraces = normalizedFilter
+    ? traces.filter((trace) => trace.requestId === normalizedFilter)
+    : traces;
 
   return (
     <div className="space-y-6">
@@ -161,13 +172,33 @@ export function UsagePanel() {
       </section>
 
       <section>
-        <h2 className="mb-1 text-lg font-semibold tracking-tight">Recent traces</h2>
-        <p className="mb-3 text-xs text-soya-ink/60">Metadata only, retained for 24 hours. Prompt and response bodies are never stored.</p>
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="mb-1 text-lg font-semibold tracking-tight">Recent traces</h2>
+            <p className="text-xs text-soya-ink/60">Metadata only, retained for 24 hours. Prompt and response bodies are never stored.</p>
+          </div>
+          <label className="w-full sm:w-80">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-soya-ink/50">
+              Exact request ID
+            </span>
+            <div className="mt-1 flex gap-2">
+              <input
+                className="h-9 min-w-0 flex-1 rounded-md border border-soya-ink/15 bg-white/70 px-3 font-mono text-xs focus:border-soya-accent focus:outline-none focus:ring-2 focus:ring-soya-accent/30"
+                value={requestFilter}
+                onChange={(event) => setRequestFilter(event.target.value)}
+                placeholder="req_…"
+                spellCheck={false}
+              />
+              {requestFilter && <Button size="sm" variant="ghost" onClick={() => setRequestFilter("")}>Clear</Button>}
+            </div>
+          </label>
+        </div>
         <div className="overflow-x-auto rounded-xl border border-soya-ink/10 bg-white/60">
-          <table className="w-full min-w-[820px] border-collapse text-left text-sm">
+          <table className="w-full min-w-[1040px] border-collapse text-left text-sm">
             <thead className="bg-soya-ink/5 text-[11px] uppercase tracking-wider text-soya-ink/60">
               <tr>
                 <th className="px-4 py-3 font-medium">Time</th>
+                <th className="px-4 py-3 font-medium">Request ID</th>
                 <th className="px-4 py-3 font-medium">Trace</th>
                 <th className="px-4 py-3 font-medium">Model</th>
                 <th className="px-4 py-3 font-medium">Key</th>
@@ -176,11 +207,14 @@ export function UsagePanel() {
               </tr>
             </thead>
             <tbody>
-              {traces.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-xs text-soya-ink/50">No traces in the last 24 hours.</td></tr>
-              ) : traces.map((trace) => (
+              {visibleTraces.length === 0 ? (
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-xs text-soya-ink/50">
+                  {normalizedFilter ? "No trace matches this request ID yet. Try Refresh." : "No traces in the last 24 hours."}
+                </td></tr>
+              ) : visibleTraces.map((trace) => (
                 <tr key={trace.requestId} className="border-t border-soya-ink/5">
                   <td className="px-4 py-3 text-xs">{fmtDate(trace.createdAt)}</td>
+                  <td className="px-4 py-3 font-mono text-xs">{trace.requestId}</td>
                   <td className="px-4 py-3 font-mono text-xs">{trace.traceId}</td>
                   <td className="px-4 py-3 font-mono text-xs">{trace.model}</td>
                   <td className="px-4 py-3 font-mono text-xs">{trace.keyPrefix}…</td>
