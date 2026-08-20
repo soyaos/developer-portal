@@ -113,9 +113,13 @@ The authenticated control plane uses one D1 database with strict
 - A tenant can keep at most three active keys.
 - Usage and trace metadata is retained for 24 hours; prompt and response
   bodies are not stored.
-- Migrations live in `migrations/`. Until the CI token has D1 Edit permission,
-  an operator must apply pending remote migrations before publishing a Worker
-  version that depends on them.
+- Migrations live in `migrations/`. GitHub Actions applies pending remote
+  migrations before publishing a Worker version that depends on them.
+- `CLOUDFLARE_API_TOKEN` uses the existing Cloudflare token
+  `soyaos-developer-portal-ci`. If CI later reports a missing Cloudflare
+  permission, add the least-privilege permission to that token, then overwrite
+  the existing GitHub repository secret. Do not create a duplicate token or
+  secret name unless credentials are being deliberately rotated.
 
 ## Deploy
 
@@ -127,7 +131,7 @@ Required repo secrets (Settings → Secrets and variables → Actions):
 
 | Secret                  | Notes                                                     |
 | ----------------------- | --------------------------------------------------------- |
-| `CLOUDFLARE_API_TOKEN`  | Workers Scripts:Edit (least privilege).                   |
+| `CLOUDFLARE_API_TOKEN`  | Existing `soyaos-developer-portal-ci` token: Workers Scripts Edit and D1 Edit. Extend this token with least privilege when CI needs another scoped permission. |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account that owns the Worker.                  |
 
 Required **Cloudflare Worker secrets** (not GitHub Actions
