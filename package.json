@@ -20,7 +20,10 @@
     "test:worker": "vitest run --config vitest.worker.config.ts",
     "test:watch": "vitest",
     "deploy:staging": "npm run build:staging && wrangler deploy --env staging",
-    "d1:migrate:staging": "wrangler d1 migrations apply DB --remote --env staging"
+    "d1:migrate:staging": "wrangler d1 migrations apply DB --remote --env staging",
+    "preflight:production": "node scripts/preflight.mjs",
+    "preflight:production:secrets": "node scripts/check-secret-names.mjs",
+    "security:audit": "npm audit --omit=dev --audit-level=high && gitleaks git --no-banner --redact ."
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.2.1",

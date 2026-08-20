@@ -183,6 +183,36 @@ describe("OAuth routes", () => {
 });
 
 describe("auth middleware", () => {
+  it("redirects the Cloud alias to the canonical Portal without reading a session", async () => {
+    const next = vi.fn(async () => new Response("must not run"));
+    const response = (await onRequest(
+      routeContext("https://cloud.soyaos.ai/legacy/path", new MemoryCookies(), {}),
+      next,
+    )) as Response;
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("https://developer.soyaos.ai/");
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("serves only the status root through the dedicated status page", async () => {
+    const next = vi.fn(async (rewrite?: string | URL | Request) => {
+      expect(rewrite).toBe("/status");
+      return new Response("status content");
+    });
+    const response = (await onRequest(
+      routeContext("https://status.soyaos.ai/", new MemoryCookies(), {}),
+      next,
+    )) as Response;
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("status content");
+
+    const hidden = (await onRequest(
+      routeContext("https://status.soyaos.ai/login", new MemoryCookies(), {}),
+      async () => new Response("must not run"),
+    )) as Response;
+    expect(hidden.status).toBe(404);
+  });
+
   it("redirects an anonymous protected request and preserves a local return path", async () => {
     const response = (await onRequest(
       routeContext("https://developer.soyaos.ai/api-keys?tab=active", new MemoryCookies(), ENV),

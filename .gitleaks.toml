@@ -1,0 +1,12 @@
+title = "SoyaOS Developer Portal"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Historical pre-Preview mock key labels; they are not valid sk-soya keys."
+condition = "AND"
+targetRules = ["generic-api-key"]
+regexTarget = "line"
+paths = ['''^src/components/UsagePanel\.tsx$''']
+regexes = ['''keyPrefix:\s*"sk-soya-(prod|dev)-[0-9a-f]{6}"''']

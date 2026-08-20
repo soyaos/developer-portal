@@ -1,0 +1,67 @@
+---
+export const prerender = false;
+
+const components = [
+  { name: "Developer Portal", endpoint: "developer.soyaos.ai" },
+  { name: "OpenAI-compatible API", endpoint: "api.soyaos.ai" },
+  { name: "Managed inference", endpoint: "Cloudflare Workers AI" },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta
+      name="description"
+      content="Current service status for the SoyaOS Cloud Public Preview."
+    />
+    <title>SoyaOS Cloud Status</title>
+    <style>
+      :root { color-scheme: light; font-family: ui-sans-serif, system-ui, sans-serif; color: #18221b; background: #f5f7f3; }
+      body { margin: 0; }
+      main { width: min(42rem, calc(100% - 2rem)); margin: 0 auto; padding: 4rem 0; }
+      h1 { margin: .5rem 0 0; font-size: clamp(2rem, 7vw, 3.5rem); letter-spacing: -.04em; }
+      p { line-height: 1.6; color: #516056; }
+      .eyebrow { color: #287a4a; font-size: .75rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+      .summary { margin: 2rem 0; border: 1px solid #a9d7b7; border-radius: 1rem; background: #eef9f1; padding: 1rem 1.25rem; color: #166534; font-weight: 700; }
+      .component { display: flex; justify-content: space-between; gap: 1rem; border-top: 1px solid #dce3dd; padding: 1rem 0; }
+      .component small { display: block; margin-top: .25rem; color: #718077; }
+      .state { color: #166534; font-weight: 700; }
+      footer { margin-top: 3rem; font-size: .8rem; }
+      a { color: #236b42; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="eyebrow">Public Preview · Free · No SLA</div>
+      <h1>SoyaOS Cloud Status</h1>
+      <p>
+        Live service boundary for the single-region SoyaOS Cloud Public Preview.
+        Status reflects the latest automated production deployment checks.
+      </p>
+
+      <div class="summary">All systems operational</div>
+
+      <section aria-label="Components">
+        {components.map((component) => (
+          <div class="component">
+            <div>
+              <strong>{component.name}</strong>
+              <small>{component.endpoint}</small>
+            </div>
+            <span class="state">Operational</span>
+          </div>
+        ))}
+      </section>
+
+      <footer>
+        <p>
+          The Preview is best effort and has no uptime SLA. For reproducible checks,
+          see the <a href="https://github.com/soyaos/developer-portal/actions">deployment history</a>.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

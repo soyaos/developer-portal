@@ -193,6 +193,31 @@ their metadata for retention tests. Both routes return `404` unless
 accidentally configured on production. Never print the bootstrap secret,
 session cookie, or generated API keys in E2E logs or reports.
 
+## Production release preflight
+
+After every production publish, CI runs a read-only preflight against the
+public contract surfaces. It verifies the Portal pages, anonymous API error
+envelope, the `cloud.soyaos.ai` canonical redirect, the public status page and
+that staging-only E2E routes remain hidden in production:
+
+```bash
+npm run preflight:production
+```
+
+The production secret-name check reads names only and fails if a required name
+is missing or if `E2E_BOOTSTRAP_SECRET` appears in production. It never reads or
+prints secret values:
+
+```bash
+npm run preflight:production:secrets
+```
+
+Before a release, run the dependency and redacted Git-history scan locally:
+
+```bash
+npm run security:audit
+```
+
 GitHub OAuth also uses a separate staging OAuth App with callback
 `https://developer-staging.soyaos.ai/auth/github/callback`. Store its Client ID
 and Client Secret directly as encrypted staging Worker secrets; never commit

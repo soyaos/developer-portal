@@ -52,4 +52,14 @@ describe("Public Preview Portal contract", () => {
     expect(usage).toContain("trace.requestId === normalizedFilter");
     expect(usage).toContain("{trace.requestId}");
   });
+
+  it("registers the canonical Cloud alias and public status domain", () => {
+    const wrangler = JSON.parse(source("wrangler.jsonc")) as {
+      routes: Array<{ pattern: string; custom_domain: boolean }>;
+    };
+    const routes = wrangler.routes.map((route) => route.pattern);
+    expect(routes).toContain("cloud.soyaos.ai");
+    expect(routes).toContain("status.soyaos.ai");
+    expect(source("src/pages/status.astro")).toContain("All systems operational");
+  });
 });

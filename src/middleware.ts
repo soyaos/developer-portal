@@ -11,6 +11,29 @@ const PROTECTED_PATHS = new Set([
 ]);
 
 export const onRequest: MiddlewareHandler = async (context, next) => {
+  const hostname = context.url.hostname.toLowerCase();
+  if (hostname === "cloud.soyaos.ai") {
+    return new Response(null, {
+      status: 302,
+      headers: {
+        "cache-control": "public, max-age=300",
+        location: "https://developer.soyaos.ai/",
+      },
+    });
+  }
+  if (hostname === "status.soyaos.ai") {
+    const canReadStatus =
+      (context.request.method === "GET" || context.request.method === "HEAD") &&
+      context.url.pathname === "/";
+    if (!canReadStatus) {
+      return new Response("Not found.", {
+        status: 404,
+        headers: { "cache-control": "public, max-age=60" },
+      });
+    }
+    return next("/status");
+  }
+
   const secret = runtimeEnv().SESSION_SECRET?.trim() ?? "";
   const session = secret ? await getSession(context.cookies, secret) : null;
   context.locals.user = session;

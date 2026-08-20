@@ -13,6 +13,14 @@
     {
       "pattern": "api.soyaos.ai",
       "custom_domain": true
+    },
+    {
+      "pattern": "cloud.soyaos.ai",
+      "custom_domain": true
+    },
+    {
+      "pattern": "status.soyaos.ai",
+      "custom_domain": true
     }
   ],
   "vars": {
