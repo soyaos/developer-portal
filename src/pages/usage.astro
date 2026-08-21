@@ -1,17 +1,17 @@
 ---
 import Base from "../layouts/Base.astro";
 import { UsagePanel } from "../components/UsagePanel";
+import { getDictionary, LOCALE_META } from "../lib/i18n";
+
+const locale = Astro.locals.locale;
+const page = getDictionary(locale).usage;
 ---
 
-<Base title="Usage · SoyaOS Developer Portal">
+<Base title={page.title} description={page.description} noindex>
   <section class="mb-8">
-    <p class="text-xs uppercase tracking-[0.2em] text-soya-accent">Quota</p>
-    <h1 class="mt-2 text-3xl font-semibold tracking-tight">Usage</h1>
-    <p class="mt-2 max-w-2xl text-sm text-soya-ink/70">
-      Live daily quota, per-key model usage and request trace metadata for your
-      personal tenant. Quotas reset at 00:00 UTC.
-    </p>
+    <p class="text-xs uppercase tracking-[0.2em] text-soya-accent">{page.eyebrow}</p>
+    <h1 class="mt-2 text-3xl font-semibold tracking-tight">{page.heading}</h1>
+    <p class="mt-2 max-w-2xl text-sm text-soya-ink/70">{page.description}</p>
   </section>
-
-  <UsagePanel client:load />
+  <UsagePanel messages={page.component} locale={LOCALE_META[locale].htmlLang} client:load />
 </Base>

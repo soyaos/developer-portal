@@ -1,67 +1,45 @@
 ---
-export const prerender = false;
+import { getDictionary, LOCALE_META } from "../lib/i18n";
 
-const components = [
-  { name: "Developer Portal", endpoint: "developer.soyaos.ai" },
-  { name: "OpenAI-compatible API", endpoint: "api.soyaos.ai" },
-  { name: "Managed inference", endpoint: "Cloudflare Workers AI" },
-];
+export const prerender = false;
+const locale = Astro.locals.locale;
+const page = getDictionary(locale).status;
+const endpoints = ["developer.soyaos.ai", "api.soyaos.ai", "Cloudflare Workers AI"];
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={LOCALE_META[locale].htmlLang}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
-    <meta
-      name="description"
-      content="Current service status for SoyaOS Cloud v0.2.0."
-    />
-    <title>SoyaOS Cloud Status</title>
+    <meta name="description" content={page.description} />
+    <title>{page.title}</title>
     <style>
       :root { color-scheme: light; font-family: ui-sans-serif, system-ui, sans-serif; color: #18221b; background: #f5f7f3; }
-      body { margin: 0; }
-      main { width: min(42rem, calc(100% - 2rem)); margin: 0 auto; padding: 4rem 0; }
+      body { margin: 0; } main { width: min(42rem, calc(100% - 2rem)); margin: 0 auto; padding: 4rem 0; }
       h1 { margin: .5rem 0 0; font-size: clamp(2rem, 7vw, 3.5rem); letter-spacing: -.04em; }
-      p { line-height: 1.6; color: #516056; }
-      .eyebrow { color: #287a4a; font-size: .75rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+      p { line-height: 1.6; color: #516056; } .eyebrow { color: #287a4a; font-size: .75rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
       .summary { margin: 2rem 0; border: 1px solid #a9d7b7; border-radius: 1rem; background: #eef9f1; padding: 1rem 1.25rem; color: #166534; font-weight: 700; }
       .component { display: flex; justify-content: space-between; gap: 1rem; border-top: 1px solid #dce3dd; padding: 1rem 0; }
-      .component small { display: block; margin-top: .25rem; color: #718077; }
-      .state { color: #166534; font-weight: 700; }
-      footer { margin-top: 3rem; font-size: .8rem; }
-      a { color: #236b42; }
+      .component small { display: block; margin-top: .25rem; color: #718077; } .state { color: #166534; font-weight: 700; }
+      footer { margin-top: 3rem; font-size: .8rem; } a { color: #236b42; }
     </style>
   </head>
   <body>
     <main>
-      <div class="eyebrow">v0.2.0 · Stable · Free · No SLA</div>
-      <h1>SoyaOS Cloud Status</h1>
-      <p>
-        Live service boundary for the single-region SoyaOS Cloud v0.2.0 service.
-        Status reflects the latest automated production deployment checks.
-      </p>
-
-      <div class="summary">All systems operational</div>
-
-      <section aria-label="Components">
-        {components.map((component) => (
+      <div class="eyebrow">{page.eyebrow}</div>
+      <h1>{page.title}</h1>
+      <p>{page.intro}</p>
+      <div class="summary">{page.summary}</div>
+      <section aria-label={page.componentsLabel}>
+        {page.components.map((name, index) => (
           <div class="component">
-            <div>
-              <strong>{component.name}</strong>
-              <small>{component.endpoint}</small>
-            </div>
-            <span class="state">Operational</span>
+            <div><strong>{name}</strong><small>{endpoints[index]}</small></div>
+            <span class="state">{page.operational}</span>
           </div>
         ))}
       </section>
-
-      <footer>
-        <p>
-          The service is best effort and has no uptime SLA. For reproducible checks,
-          see the <a href="https://github.com/soyaos/developer-portal/actions">deployment history</a>.
-        </p>
-      </footer>
+      <footer><p>{page.footerBefore} <a href="https://github.com/soyaos/developer-portal/actions">{page.history}</a>。</p></footer>
     </main>
   </body>
 </html>

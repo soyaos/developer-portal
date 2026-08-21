@@ -9,6 +9,9 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import { CreateApiKeyDialog, type CreatedKey } from "./CreateApiKeyDialog";
+import type { PortalDictionary } from "../lib/i18n";
+
+type Messages = PortalDictionary["apiKeys"]["component"];
 
 interface ApiKey {
   id: string;
@@ -23,9 +26,9 @@ interface ErrorPayload {
   error?: { message?: string };
 }
 
-function fmtDate(iso: string | null): string {
-  if (!iso) return "never";
-  return new Date(iso).toLocaleString(undefined, {
+function fmtDate(iso: string | null, never: string, locale: string): string {
+  if (!iso) return never;
+  return new Date(iso).toLocaleString(locale, {
     year: "numeric",
     month: "short",
     day: "2-digit",
@@ -34,16 +37,16 @@ function fmtDate(iso: string | null): string {
   });
 }
 
-async function responseError(response: Response): Promise<Error> {
+async function responseError(response: Response, messages: Messages): Promise<Error> {
   try {
     const payload = (await response.json()) as ErrorPayload;
-    return new Error(payload.error?.message || `Request failed (${response.status}).`);
+    return new Error(payload.error?.message || `${messages.requestFailed} (${response.status}).`);
   } catch {
-    return new Error(`Request failed (${response.status}).`);
+    return new Error(`${messages.requestFailed} (${response.status}).`);
   }
 }
 
-export function ApiKeysTable() {
+export function ApiKeysTable({ messages, locale }: { messages: Messages; locale: string }) {
   const [keys, setKeys] = React.useState<ApiKey[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -59,15 +62,15 @@ export function ApiKeysTable() {
         credentials: "same-origin",
         headers: { accept: "application/json" },
       });
-      if (!response.ok) throw await responseError(response);
+      if (!response.ok) throw await responseError(response, messages);
       const payload = (await response.json()) as { keys: ApiKey[] };
       setKeys(payload.keys);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not load API keys.");
+      setError(cause instanceof Error ? cause.message : messages.loadError);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [messages]);
 
   React.useEffect(() => {
     void loadKeys();
@@ -80,7 +83,7 @@ export function ApiKeysTable() {
       headers: { "content-type": "application/json", accept: "application/json" },
       body: JSON.stringify({ name }),
     });
-    if (!response.ok) throw await responseError(response);
+    if (!response.ok) throw await responseError(response, messages);
     return ((await response.json()) as { key: CreatedKey }).key;
   };
 
@@ -93,11 +96,11 @@ export function ApiKeysTable() {
         method: "DELETE",
         credentials: "same-origin",
       });
-      if (!response.ok) throw await responseError(response);
+      if (!response.ok) throw await responseError(response, messages);
       setKeys((current) => current.filter((key) => key.id !== pendingRevoke.id));
       setPendingRevoke(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not revoke the key.");
+      setError(cause instanceof Error ? cause.message : messages.revokeError);
     } finally {
       setRevoking(false);
     }
@@ -107,13 +110,13 @@ export function ApiKeysTable() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">Active API keys</h2>
+          <h2 className="text-lg font-semibold tracking-tight">{messages.active}</h2>
           <p className="mt-1 text-xs text-soya-ink/60">
-            Keys grant access to <code>GET /v1/models</code> and <code>POST /v1/chat/completions</code>.
+            {messages.grant}
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)} disabled={loading || keys.length >= 3}>
-          + Create new key
+          {messages.create}
         </Button>
       </header>
 
@@ -121,7 +124,7 @@ export function ApiKeysTable() {
         <div role="alert" className="flex items-center justify-between gap-3 rounded-md border border-red-400/40 bg-red-50 px-3 py-2 text-xs text-red-700">
           <span>{error}</span>
           <Button size="sm" variant="secondary" onClick={() => void loadKeys()}>
-            Retry
+            {messages.retry}
           </Button>
         </div>
       )}
@@ -130,25 +133,25 @@ export function ApiKeysTable() {
         <table className="w-full min-w-[760px] border-collapse text-left text-sm">
           <thead className="bg-soya-ink/5 text-[11px] uppercase tracking-wider text-soya-ink/60">
             <tr>
-              <th className="px-4 py-3 font-medium">Name</th>
-              <th className="px-4 py-3 font-medium">Prefix</th>
-              <th className="px-4 py-3 font-medium">Scopes</th>
-              <th className="px-4 py-3 font-medium">Created</th>
-              <th className="px-4 py-3 font-medium">Last used</th>
-              <th className="px-4 py-3 font-medium text-right">Actions</th>
+              <th className="px-4 py-3 font-medium">{messages.name}</th>
+              <th className="px-4 py-3 font-medium">{messages.prefix}</th>
+              <th className="px-4 py-3 font-medium">{messages.scopes}</th>
+              <th className="px-4 py-3 font-medium">{messages.created}</th>
+              <th className="px-4 py-3 font-medium">{messages.lastUsed}</th>
+              <th className="px-4 py-3 font-medium text-right">{messages.actions}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-xs text-soya-ink/50">
-                  Loading keys…
+                  {messages.loading}
                 </td>
               </tr>
             ) : keys.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-xs text-soya-ink/50">
-                  No active keys. Create one to run the first Cloud smoke test.
+                  {messages.empty}
                 </td>
               </tr>
             ) : (
@@ -165,11 +168,11 @@ export function ApiKeysTable() {
                       ))}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-soya-ink/70">{fmtDate(key.createdAt)}</td>
-                  <td className="px-4 py-3 text-xs text-soya-ink/70">{fmtDate(key.lastUsedAt)}</td>
+                  <td className="px-4 py-3 text-xs text-soya-ink/70">{fmtDate(key.createdAt, messages.never, locale)}</td>
+                  <td className="px-4 py-3 text-xs text-soya-ink/70">{fmtDate(key.lastUsedAt, messages.never, locale)}</td>
                   <td className="px-4 py-3 text-right">
                     <Button size="sm" variant="danger" onClick={() => setPendingRevoke(key)}>
-                      Revoke
+                      {messages.revoke}
                     </Button>
                   </td>
                 </tr>
@@ -180,7 +183,7 @@ export function ApiKeysTable() {
       </div>
 
       {keys.length >= 3 && (
-        <p className="text-xs text-soya-ink/60">Active key limit reached: revoke a key before creating another.</p>
+        <p className="text-xs text-soya-ink/60">{messages.limit}</p>
       )}
 
       <CreateApiKeyDialog
@@ -188,23 +191,24 @@ export function ApiKeysTable() {
         onOpenChange={setCreateOpen}
         onCreate={createKey}
         onCreated={(key) => setKeys((current) => [key, ...current])}
+        messages={messages.createDialog}
       />
 
       <Dialog open={pendingRevoke !== null} onOpenChange={(open) => !open && setPendingRevoke(null)}>
         <DialogHeader>
-          <DialogTitle>Revoke this key?</DialogTitle>
+          <DialogTitle>{messages.revokeTitle}</DialogTitle>
         </DialogHeader>
         <DialogBody>
           <p className="text-sm text-soya-ink/80">
-            Revoking <code>{pendingRevoke?.name}</code> invalidates it immediately. This cannot be undone.
+            {messages.revokeBefore} <code>{pendingRevoke?.name}</code> {messages.revokeAfter}
           </p>
         </DialogBody>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setPendingRevoke(null)} disabled={revoking}>
-            Cancel
+            {messages.cancel}
           </Button>
           <Button variant="danger" onClick={() => void confirmRevoke()} disabled={revoking}>
-            {revoking ? "Revoking…" : "Revoke key"}
+            {revoking ? messages.revoking : messages.revokeKey}
           </Button>
         </DialogFooter>
       </Dialog>

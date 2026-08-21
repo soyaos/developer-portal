@@ -15,8 +15,17 @@ import {
   CardTitle,
 } from "./ui/card";
 import { Input } from "./ui/input";
+import type { Locale, PortalDictionary } from "../lib/i18n";
 
-const DEFAULT_PROMPT = "Explain Agent OS in three short sentences.";
+type Messages = PortalDictionary["playground"]["component"];
+
+const DEFAULT_ERRORS = {
+  cancelled: "Request cancelled.",
+  invalidKey: "This API key is invalid or revoked. Create or copy an active key and try again.",
+  quotaReached: "Free quota reached",
+  retryAfter: "Retry after {seconds} seconds.",
+  requestFailed: "The request failed.",
+};
 
 interface ResultState {
   content: string;
@@ -26,50 +35,56 @@ interface ResultState {
   streamed: boolean;
 }
 
-export function formatPlaygroundError(cause: unknown, apiKey = ""): string {
+export function formatPlaygroundError(
+  cause: unknown,
+  apiKey = "",
+  messages: Pick<Messages, "cancelled" | "invalidKey" | "quotaReached" | "retryAfter" | "requestFailed"> = DEFAULT_ERRORS,
+): string {
   let message: string;
   if (cause instanceof DOMException && cause.name === "AbortError") {
-    message = "Request cancelled.";
+    message = messages.cancelled;
   } else if (cause instanceof PlaygroundApiError) {
-    const retry = cause.retryAfter ? ` Retry after ${cause.retryAfter} seconds.` : "";
+    const retry = cause.retryAfter
+      ? ` ${messages.retryAfter.replace("{seconds}", String(cause.retryAfter))}`
+      : "";
     if (cause.status === 401) {
-      message = "This API key is invalid or revoked. Create or copy an active key and try again.";
+      message = messages.invalidKey;
     } else if (cause.status === 429) {
-      message = `Free quota reached (${cause.code}).${retry}`;
+      message = `${messages.quotaReached} (${cause.code}).${retry}`;
     } else {
       message = `${cause.message} (${cause.code}).${retry}`;
     }
   } else {
-    message = cause instanceof Error ? cause.message : "The request failed.";
+    message = cause instanceof Error ? cause.message : messages.requestFailed;
   }
   const secret = apiKey.trim();
   return secret ? message.split(secret).join("[redacted]") : message;
 }
 
-function UsageSummary({ usage }: { usage: PlaygroundUsage }) {
+function UsageSummary({ usage, messages }: { usage: PlaygroundUsage; messages: Messages }) {
   return (
     <dl className="grid grid-cols-3 gap-3 text-xs">
       <div>
-        <dt className="text-soya-ink/50">Prompt</dt>
+        <dt className="text-soya-ink/50">{messages.promptTokens}</dt>
         <dd className="mt-1 font-mono">{usage.promptTokens}</dd>
       </div>
       <div>
-        <dt className="text-soya-ink/50">Completion</dt>
+        <dt className="text-soya-ink/50">{messages.completionTokens}</dt>
         <dd className="mt-1 font-mono">{usage.completionTokens}</dd>
       </div>
       <div>
-        <dt className="text-soya-ink/50">Total</dt>
+        <dt className="text-soya-ink/50">{messages.totalTokens}</dt>
         <dd className="mt-1 font-mono">{usage.totalTokens}</dd>
       </div>
     </dl>
   );
 }
 
-export function Playground() {
+export function Playground({ messages, locale }: { messages: Messages; locale: Locale }) {
   const [apiKey, setApiKey] = React.useState("");
   const [models, setModels] = React.useState<string[]>([]);
   const [model, setModel] = React.useState("soya:starter");
-  const [prompt, setPrompt] = React.useState(DEFAULT_PROMPT);
+  const [prompt, setPrompt] = React.useState(messages.defaultPrompt);
   const [stream, setStream] = React.useState(false);
   const [streamedContent, setStreamedContent] = React.useState("");
   const [result, setResult] = React.useState<ResultState | null>(null);
@@ -114,7 +129,7 @@ export function Playground() {
     } catch (cause) {
       if (abortRef.current === controller) {
         setModels([]);
-        setError(formatPlaygroundError(cause, key));
+        setError(formatPlaygroundError(cause, key, messages));
       }
     } finally {
       if (abortRef.current === controller) {
@@ -160,7 +175,7 @@ export function Playground() {
       setStreamedContent("");
     } catch (cause) {
       if (abortRef.current === controller) {
-        setError(formatPlaygroundError(cause, key));
+        setError(formatPlaygroundError(cause, key, messages));
       }
     } finally {
       if (abortRef.current === controller) {
@@ -177,15 +192,15 @@ export function Playground() {
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <Card>
         <CardHeader>
-          <CardTitle>Request</CardTitle>
+          <CardTitle>{messages.request}</CardTitle>
           <CardDescription>
-            Your key stays only in this tab&apos;s component memory and is cleared on refresh.
+            {messages.keyMemory}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           <div>
             <label htmlFor="playground-key" className="text-xs font-medium text-soya-ink/80">
-              API key
+              {messages.apiKey}
             </label>
             <div className="mt-1 flex gap-2">
               <Input
@@ -206,19 +221,19 @@ export function Playground() {
                 onClick={() => void loadModels()}
                 disabled={!apiKey.trim() || loadingModels || running}
               >
-                {loadingModels ? "Loading…" : "Load models"}
+                {loadingModels ? messages.loading : messages.loadModels}
               </Button>
               <Button variant="ghost" onClick={clearKey} disabled={!apiKey && !result}>
-                Clear
+                {messages.clear}
               </Button>
             </div>
             <p className="mt-1 text-[11px] text-soya-ink/50">
-              Use a trusted device. The key is sent only to api.soyaos.ai and is never saved by the Portal.
+              {messages.keyHint}
             </p>
           </div>
 
           <label className="block">
-            <span className="text-xs font-medium text-soya-ink/80">Model</span>
+            <span className="text-xs font-medium text-soya-ink/80">{messages.model}</span>
             <select
               className="mt-1 h-10 w-full rounded-md border border-soya-ink/15 bg-white/70 px-3 font-mono text-sm focus:border-soya-accent focus:outline-none focus:ring-2 focus:ring-soya-accent/30"
               value={model}
@@ -231,7 +246,7 @@ export function Playground() {
           </label>
 
           <label className="block">
-            <span className="text-xs font-medium text-soya-ink/80">Message</span>
+            <span className="text-xs font-medium text-soya-ink/80">{messages.message}</span>
             <textarea
               className="mt-1 min-h-36 w-full resize-y rounded-md border border-soya-ink/15 bg-white/70 px-3 py-2 text-sm leading-6 focus:border-soya-accent focus:outline-none focus:ring-2 focus:ring-soya-accent/30"
               value={prompt}
@@ -247,7 +262,7 @@ export function Playground() {
               onChange={(event) => setStream(event.target.checked)}
               className="h-4 w-4 accent-soya-ink"
             />
-            Stream response with server-sent events
+            {messages.streamResponse}
           </label>
 
           {error && (
@@ -261,9 +276,9 @@ export function Playground() {
               onClick={() => void run()}
               disabled={!apiKey.trim() || !prompt.trim() || running || loadingModels}
             >
-              {running ? (stream ? "Streaming…" : "Running…") : "Run completion"}
+              {running ? (stream ? messages.streaming : messages.running) : messages.run}
             </Button>
-            {running && <Button variant="secondary" onClick={cancel}>Cancel</Button>}
+            {running && <Button variant="secondary" onClick={cancel}>{messages.cancel}</Button>}
           </div>
         </CardContent>
       </Card>
@@ -272,17 +287,17 @@ export function Playground() {
         <CardHeader>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <CardTitle>Response</CardTitle>
-              <CardDescription>OpenAI-compatible content and request metadata.</CardDescription>
+              <CardTitle>{messages.response}</CardTitle>
+              <CardDescription>{messages.responseDescription}</CardDescription>
             </div>
-            {result && <Badge variant="accent">{result.streamed ? "stream" : "json"}</Badge>}
+            {result && <Badge variant="accent">{result.streamed ? messages.stream : messages.json}</Badge>}
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="min-h-56 whitespace-pre-wrap rounded-lg border border-soya-ink/10 bg-soya-paper/70 p-4 text-sm leading-6">
             {visibleContent || (
               <span className="text-soya-ink/40">
-                The assistant response will appear here. Prompt and response bodies are not persisted by SoyaOS.
+                {messages.emptyResponse}
               </span>
             )}
           </div>
@@ -291,26 +306,26 @@ export function Playground() {
             <div className="space-y-4 rounded-lg border border-soya-ink/10 bg-white/60 p-4">
               <div className="grid gap-3 text-xs sm:grid-cols-2">
                 <div>
-                  <p className="text-soya-ink/50">Request ID</p>
+                  <p className="text-soya-ink/50">{messages.requestId}</p>
                   <p className="mt-1 break-all font-mono">{result.requestId}</p>
                 </div>
                 <div>
-                  <p className="text-soya-ink/50">Browser latency</p>
+                  <p className="text-soya-ink/50">{messages.browserLatency}</p>
                   <p className="mt-1 font-mono">{result.latencyMs.toLocaleString()} ms</p>
                 </div>
               </div>
               {result.usage ? (
-                <UsageSummary usage={result.usage} />
+                <UsageSummary usage={result.usage} messages={messages} />
               ) : (
                 <p className="text-xs text-soya-ink/60">
-                  Streaming token usage is available in the Usage dashboard.
+                  {messages.streamUsage}
                 </p>
               )}
               <a
                 className="inline-flex text-xs font-medium text-soya-accent underline hover:no-underline"
-                href={`/usage?requestId=${encodeURIComponent(result.requestId)}`}
+                href={`/${locale}/usage?requestId=${encodeURIComponent(result.requestId)}`}
               >
-                Find this request in Traces →
+                {messages.findTrace}
               </a>
             </div>
           )}

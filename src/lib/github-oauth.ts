@@ -73,14 +73,14 @@ export function constantTimeEqual(left: string, right: string): boolean {
   return diff === 0;
 }
 
-export function sanitizeReturnTo(value: string | null): string {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/";
+export function sanitizeReturnTo(value: string | null, fallback = "/"): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return fallback;
   try {
     const parsed = new URL(value, PRODUCTION_ORIGIN);
-    if (parsed.origin !== PRODUCTION_ORIGIN) return "/";
+    if (parsed.origin !== PRODUCTION_ORIGIN) return fallback;
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
-    return "/";
+    return fallback;
   }
 }
 

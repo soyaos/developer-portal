@@ -1,25 +1,32 @@
 ---
+import LocaleSwitcher from "../components/LocaleSwitcher.astro";
+import { getDictionary, localizePath, LOCALE_META } from "../lib/i18n";
 import "../styles/globals.css";
 
 interface Props {
   title?: string;
   description?: string;
+  noindex?: boolean;
 }
 
+const locale = Astro.locals.locale;
+const dictionary = getDictionary(locale);
 const {
-  title = "SoyaOS Developer Portal",
-  description = "API Reference, Playground, API Keys and Usage Dashboard for SoyaOS Cloud v0.2.0.",
+  title = dictionary.meta.defaultTitle,
+  description = dictionary.meta.defaultDescription,
+  noindex = false,
 } = Astro.props;
-
 const user = Astro.locals.user;
+const href = (path: string) => localizePath(locale, path);
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={LOCALE_META[locale].htmlLang}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
     <link rel="icon" type="image/jpeg" href="/logo.jpg" />
     <link rel="apple-touch-icon" href="/logo.jpg" />
     <title>{title}</title>
@@ -27,38 +34,32 @@ const user = Astro.locals.user;
   <body class="min-h-screen flex flex-col font-sans">
     <div class="border-b border-soya-accent/20 bg-soya-accent/[0.07] text-soya-ink">
       <div class="mx-auto flex max-w-6xl items-center justify-between gap-3 px-6 py-2 text-xs">
-        <span><strong>v0.2.0 Stable</strong> · Free single-region service, best effort, no SLA.</span>
-        <a href="https://github.com/soyaos/developer-portal" class="underline hover:no-underline whitespace-nowrap" rel="noopener noreferrer" target="_blank">Source</a>
+        <span><strong>{dictionary.chrome.release}</strong> · {dictionary.chrome.serviceBoundary}</span>
+        <a href="https://github.com/soyaos/developer-portal" class="underline hover:no-underline whitespace-nowrap" rel="noopener noreferrer" target="_blank">{dictionary.chrome.source}</a>
       </div>
     </div>
     <header class="border-b border-soya-ink/10">
-      <div class="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
-        <a href="/" class="flex items-center gap-2 font-semibold tracking-tight">
+      <div class="mx-auto max-w-6xl px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+        <a href={href("/")} class="flex items-center gap-2 font-semibold tracking-tight">
           <img src="/logo.jpg" alt="SoyaOS" width="32" height="32" class="inline-block rounded-md" />
           <span>SoyaOS Developer</span>
         </a>
-        <nav class="text-sm flex items-center gap-6">
-          <a href="/docs" class="hover:text-soya-accent">Docs</a>
-          <a href="/api-keys" class="hover:text-soya-accent">API Keys</a>
-          <a href="/playground" class="hover:text-soya-accent">Playground</a>
-          <a href="/usage" class="hover:text-soya-accent">Usage</a>
-          <a href="/" class="hover:text-soya-accent">Dashboard</a>
+        <nav class="text-sm flex flex-wrap items-center justify-end gap-x-5 gap-y-3" aria-label="Primary">
+          <a href={href("/docs")} class="hover:text-soya-accent">{dictionary.chrome.nav.docs}</a>
+          <a href={href("/api-keys")} class="hover:text-soya-accent">{dictionary.chrome.nav.apiKeys}</a>
+          <a href={href("/playground")} class="hover:text-soya-accent">{dictionary.chrome.nav.playground}</a>
+          <a href={href("/usage")} class="hover:text-soya-accent">{dictionary.chrome.nav.usage}</a>
+          <a href={href("/")} class="hover:text-soya-accent">{dictionary.chrome.nav.dashboard}</a>
+          <LocaleSwitcher locale={locale} label={dictionary.chrome.language} />
           {user ? (
             <div class="flex items-center gap-3">
               <span class="text-xs text-soya-ink/60">@{user.login}</span>
-              <form method="post" action="/auth/logout">
-                <button
-                  type="submit"
-                  class="rounded-md border border-soya-ink/15 px-3 py-1.5 hover:border-soya-accent"
-                >Sign out</button>
+              <form method="post" action={`/auth/logout?locale=${locale}`}>
+                <button type="submit" class="rounded-md border border-soya-ink/15 px-3 py-1.5 hover:border-soya-accent">{dictionary.chrome.signOut}</button>
               </form>
             </div>
           ) : (
-            <a
-              href="/login"
-              class="rounded-md border border-soya-ink/15 px-3 py-1.5 hover:border-soya-accent"
-              >Sign in</a
-            >
+            <a href={href("/login")} class="rounded-md border border-soya-ink/15 px-3 py-1.5 hover:border-soya-accent">{dictionary.chrome.signIn}</a>
           )}
         </nav>
       </div>
@@ -74,11 +75,11 @@ const user = Astro.locals.user;
         <span>
           <a href="https://soyaos.ai" class="hover:text-soya-accent">soyaos.ai</a>
           &middot;
-          <a href="https://docs.soyaos.ai" class="hover:text-soya-accent">docs.soyaos.ai</a>
+          <a href={`https://soyaos.ai/${locale}/docs`} class="hover:text-soya-accent">docs</a>
           &middot;
-          <a href="/terms" class="hover:text-soya-accent">Terms</a>
+          <a href={href("/terms")} class="hover:text-soya-accent">{dictionary.chrome.terms}</a>
           &middot;
-          <a href="/privacy" class="hover:text-soya-accent">Privacy</a>
+          <a href={href("/privacy")} class="hover:text-soya-accent">{dictionary.chrome.privacy}</a>
         </span>
       </div>
     </footer>

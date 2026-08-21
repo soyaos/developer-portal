@@ -1,0 +1,38 @@
+---
+import { LOCALES, LOCALE_META, type Locale } from "../lib/i18n";
+
+interface Props {
+  locale: Locale;
+  label: string;
+}
+
+const { locale, label } = Astro.props;
+---
+
+<label class="relative inline-flex items-center">
+  <span class="sr-only">{label}</span>
+  <select
+    id="locale-switcher"
+    aria-label={label}
+    class="h-9 max-w-36 rounded-md border border-soya-ink/15 bg-soya-paper px-2 text-xs hover:border-soya-accent focus:border-soya-accent focus:outline-none focus:ring-2 focus:ring-soya-accent/30"
+  >
+    {LOCALES.map((candidate) => (
+      <option value={candidate} selected={candidate === locale}>
+        {LOCALE_META[candidate].nativeName}
+      </option>
+    ))}
+  </select>
+</label>
+
+<script>
+  interface LocaleSelect {
+    value: string;
+    addEventListener(type: "change", listener: () => void): void;
+  }
+  const select = document.querySelector("#locale-switcher") as unknown as LocaleSelect | null;
+  select?.addEventListener("change", () => {
+    const parts = window.location.pathname.split("/");
+    parts[1] = select.value;
+    window.location.assign(`${parts.join("/")}${window.location.search}${window.location.hash}`);
+  });
+</script>

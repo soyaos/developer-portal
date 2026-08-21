@@ -1,17 +1,17 @@
 ---
 import Base from "../layouts/Base.astro";
 import { ApiKeysTable } from "../components/ApiKeysTable";
+import { getDictionary, LOCALE_META } from "../lib/i18n";
+
+const locale = Astro.locals.locale;
+const page = getDictionary(locale).apiKeys;
 ---
 
-<Base title="API Keys · SoyaOS Developer Portal">
+<Base title={page.title} description={page.description} noindex>
   <section class="mb-8">
-    <p class="text-xs uppercase tracking-[0.2em] text-soya-accent">Manage</p>
-    <h1 class="mt-2 text-3xl font-semibold tracking-tight">API keys</h1>
-    <p class="mt-2 max-w-2xl text-sm text-soya-ink/70">
-      Issue and revoke keys for SoyaOS Cloud v0.2.0. The raw key is shown
-      <em>once</em>, immediately after creation — copy it before closing the dialog.
-    </p>
+    <p class="text-xs uppercase tracking-[0.2em] text-soya-accent">{page.eyebrow}</p>
+    <h1 class="mt-2 text-3xl font-semibold tracking-tight">{page.heading}</h1>
+    <p class="mt-2 max-w-2xl text-sm text-soya-ink/70">{page.description}</p>
   </section>
-
-  <ApiKeysTable client:load />
+  <ApiKeysTable messages={page.component} locale={LOCALE_META[locale].htmlLang} client:load />
 </Base>

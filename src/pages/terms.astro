@@ -1,37 +1,23 @@
 ---
 import Base from "../layouts/Base.astro";
+import { getDictionary } from "../lib/i18n";
+
+const page = getDictionary(Astro.locals.locale).terms;
 ---
 
-<Base title="Service Terms · SoyaOS Developer Portal">
+<Base title={page.title} description={page.effective}>
   <article class="max-w-3xl">
-    <p class="text-xs uppercase tracking-[0.2em] text-soya-accent">v0.2.0 Stable</p>
-    <h1 class="mt-2 text-3xl font-semibold tracking-tight">Service terms</h1>
-    <p class="mt-4 text-sm leading-6 text-soya-ink/70">
-      Effective August 20, 2026. SoyaOS Cloud v0.2.0 is a free,
-      single-region, best-effort text-agent service with no SLA.
-    </p>
-
+    <p class="text-xs uppercase tracking-[0.2em] text-soya-accent">{page.eyebrow}</p>
+    <h1 class="mt-2 text-3xl font-semibold tracking-tight">{page.heading}</h1>
+    <p class="mt-4 text-sm leading-6 text-soya-ink/70">{page.effective}</p>
     <div class="mt-8 space-y-7 text-sm leading-6 text-soya-ink/70">
-      <section>
-        <h2 class="text-xl font-semibold text-soya-ink">Acceptable use</h2>
-        <p class="mt-2">Use the service only for lawful text-agent workloads. Do not probe other tenants, evade quotas, distribute credentials, overload the service, or submit malware, exploit instructions, illegal content or third-party confidential data without permission.</p>
-      </section>
-      <section>
-        <h2 class="text-xl font-semibold text-soya-ink">v0.2.0 limits</h2>
-        <p class="mt-2">The stable v0.2.0 surface is limited to the documented models, APIs and quotas. Breaking contract changes require a later version. The service does not include arbitrary code execution, tool calls, billing, organization tenants, data residency, multi-region recovery or production support.</p>
-      </section>
-      <section>
-        <h2 class="text-xl font-semibold text-soya-ink">Your content</h2>
-        <p class="mt-2">You remain responsible for prompts and outputs and must have the rights needed to submit them. Content is sent to the managed inference upstream as described in the Privacy Notice. Verify model output before relying on it.</p>
-      </section>
-      <section>
-        <h2 class="text-xl font-semibold text-soya-ink">Availability and access</h2>
-        <p class="mt-2">The service is provided as-is and without uptime, support or fitness guarantees. SoyaOS may suspend keys or access to protect users, control cost, investigate abuse or operate the service safely.</p>
-      </section>
+      {page.sections.map((section) => (
+        <section>
+          <h2 class="text-xl font-semibold text-soya-ink">{section.title}</h2>
+          <p class="mt-2">{section.body}</p>
+        </section>
+      ))}
     </div>
-
-    <p class="mt-8 text-xs text-soya-ink/50">
-      These terms describe the released v0.2.0 product boundary. Stable does not imply an uptime SLA.
-    </p>
+    <p class="mt-8 text-xs text-soya-ink/50">{page.note}</p>
   </article>
 </Base>

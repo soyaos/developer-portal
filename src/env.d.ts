@@ -15,9 +15,12 @@ interface Env extends PortalEnv {}
 
 type CloudflareRuntime = import("@astrojs/cloudflare").Runtime;
 type PortalSession = import("./lib/session").Session;
+type PortalLocale = import("./lib/i18n").Locale;
 
 declare namespace App {
   interface Locals extends CloudflareRuntime {
     user: PortalSession | null;
+    locale: PortalLocale;
+    publicPath: string;
   }
 }

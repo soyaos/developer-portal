@@ -1,6 +1,9 @@
 import * as React from "react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
+import type { PortalDictionary } from "../lib/i18n";
+
+type Messages = PortalDictionary["webhook"]["component"];
 
 // TODO(soyaos): replace the setInterval with a real EventSource:
 //
@@ -131,7 +134,7 @@ function fmtTime(iso: string): string {
   });
 }
 
-export function WebhookFeed() {
+export function WebhookFeed({ messages }: { messages: Messages }) {
   const [bindingId, setBindingId] = React.useState<string>(BINDINGS[0].id);
   const [events, setEvents] = React.useState<InboundEvent[]>([]);
   const [paused, setPaused] = React.useState(false);
@@ -170,7 +173,7 @@ export function WebhookFeed() {
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-soya-ink/10 bg-white/60 p-4">
         <label className="flex items-center gap-3 text-sm">
           <span className="font-medium tracking-tight text-soya-ink/80">
-            Channel binding
+            {messages.channelBinding}
           </span>
           <select
             className="h-9 rounded-md border border-soya-ink/15 bg-white/80 px-3 text-sm focus:border-soya-accent focus:outline-none focus:ring-2 focus:ring-soya-accent/30"
@@ -188,14 +191,14 @@ export function WebhookFeed() {
 
         <div className="flex items-center gap-3">
           <span className="text-xs text-soya-ink/60">
-            {paused ? "paused" : "live"} · {events.length} / {MAX_EVENTS} events
+            {paused ? messages.paused : messages.live} · {events.length} / {MAX_EVENTS} {messages.events}
           </span>
           <Button
             size="sm"
             variant={paused ? "primary" : "secondary"}
             onClick={() => setPaused((p) => !p)}
           >
-            {paused ? "Resume" : "Pause"}
+            {paused ? messages.resume : messages.pause}
           </Button>
           <Button
             size="sm"
@@ -205,7 +208,7 @@ export function WebhookFeed() {
               setExpanded(null);
             }}
           >
-            Clear
+            {messages.clear}
           </Button>
         </div>
       </div>
@@ -213,7 +216,7 @@ export function WebhookFeed() {
       <div className="overflow-hidden rounded-xl border border-soya-ink/10 bg-white/60">
         {events.length === 0 ? (
           <div className="px-6 py-10 text-center text-xs text-soya-ink/50">
-            Waiting for the first inbound message from
+            {messages.waiting}
             <code className="mx-1">{selectedBinding.label}</code>…
           </div>
         ) : (
@@ -245,7 +248,7 @@ export function WebhookFeed() {
                     <div className="grid gap-4 border-t border-soya-ink/5 bg-soya-ink/[0.02] p-4 md:grid-cols-2">
                       <div>
                         <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wider text-soya-ink/60">
-                          Raw inbound payload
+                          {messages.raw}
                         </h3>
                         <pre className="max-h-64 overflow-auto rounded-md border border-soya-ink/10 bg-white/80 p-3 font-mono text-[11px] leading-relaxed text-soya-ink/80">
 {JSON.stringify(ev.raw, null, 2)}
@@ -253,7 +256,7 @@ export function WebhookFeed() {
                       </div>
                       <div>
                         <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wider text-soya-ink/60">
-                          Decoded canonical Message
+                          {messages.decoded}
                         </h3>
                         <pre className="max-h-64 overflow-auto rounded-md border border-soya-ink/10 bg-white/80 p-3 font-mono text-[11px] leading-relaxed text-soya-ink/80">
 {JSON.stringify(

@@ -168,10 +168,10 @@ describe("OAuth routes", () => {
   it("clears the session only through the POST logout route", async () => {
     const cookies = new MemoryCookies({ [SESSION_COOKIE]: "sealed-value" });
     const response = await logout(
-      routeContext("https://developer.soyaos.ai/auth/logout", cookies, ENV),
+      routeContext("https://developer.soyaos.ai/auth/logout?locale=en", cookies, ENV),
     );
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe("/login");
+    expect(response.headers.get("location")).toBe("/en/login");
     expect(cookies.deletions.has(SESSION_COOKIE)).toBe(true);
     expect(cookies.deletionOptions.get(SESSION_COOKIE)).toMatchObject({
       httpOnly: true,
@@ -183,6 +183,26 @@ describe("OAuth routes", () => {
 });
 
 describe("auth middleware", () => {
+  it("redirects locale-less pages with the specified Accept-Language fallbacks", async () => {
+    const traditional = (await onRequest(
+      routeContext("https://developer.soyaos.ai/docs", new MemoryCookies(), ENV),
+      async () => new Response("must not run"),
+    )) as Response;
+    expect(traditional.status).toBe(302);
+    expect(traditional.headers.get("location")).toBe("/zh/docs");
+
+    const context = routeContext(
+      "https://developer.soyaos.ai/docs?from=test",
+      new MemoryCookies(),
+      ENV,
+    ) as unknown as { request: Request };
+    context.request = new Request("https://developer.soyaos.ai/docs?from=test", {
+      headers: { "accept-language": "zh-TW,zh;q=0.8" },
+    });
+    const response = (await onRequest(context as never, async () => new Response("must not run"))) as Response;
+    expect(response.headers.get("location")).toBe("/zh-hant/docs?from=test");
+  });
+
   it("redirects the Cloud alias to the canonical Portal without reading a session", async () => {
     const next = vi.fn(async () => new Response("must not run"));
     const response = (await onRequest(
@@ -190,21 +210,28 @@ describe("auth middleware", () => {
       next,
     )) as Response;
     expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("https://developer.soyaos.ai/");
+    expect(response.headers.get("location")).toBe("https://developer.soyaos.ai/legacy/path");
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("serves only the status root through the dedicated status page", async () => {
+  it("negotiates the status root and serves only localized status pages", async () => {
     const next = vi.fn(async (rewrite?: string | URL | Request) => {
       expect(rewrite).toBe("/status");
       return new Response("status content");
     });
     const response = (await onRequest(
-      routeContext("https://status.soyaos.ai/", new MemoryCookies(), {}),
+      routeContext("https://status.soyaos.ai/zh", new MemoryCookies(), {}),
       next,
     )) as Response;
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("status content");
+
+    const root = (await onRequest(
+      routeContext("https://status.soyaos.ai/", new MemoryCookies(), {}),
+      async () => new Response("must not run"),
+    )) as Response;
+    expect(root.status).toBe(302);
+    expect(root.headers.get("location")).toBe("/zh");
 
     const hidden = (await onRequest(
       routeContext("https://status.soyaos.ai/login", new MemoryCookies(), {}),
@@ -215,27 +242,29 @@ describe("auth middleware", () => {
 
   it("redirects an anonymous protected request and preserves a local return path", async () => {
     const response = (await onRequest(
-      routeContext("https://developer.soyaos.ai/api-keys?tab=active", new MemoryCookies(), ENV),
+      routeContext("https://developer.soyaos.ai/en/api-keys?tab=active", new MemoryCookies(), ENV),
       async () => new Response("protected content"),
     )) as Response;
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe(
-      "/login?returnTo=%2Fapi-keys%3Ftab%3Dactive",
+      "/en/login?returnTo=%2Fen%2Fapi-keys%3Ftab%3Dactive",
     );
   });
 
   it("protects the live Playground behind GitHub sign-in", async () => {
     const response = (await onRequest(
-      routeContext("https://developer.soyaos.ai/playground", new MemoryCookies(), ENV),
+      routeContext("https://developer.soyaos.ai/zh-hant/playground", new MemoryCookies(), ENV),
       async () => new Response("playground"),
     )) as Response;
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe("/login?returnTo=%2Fplayground");
+    expect(response.headers.get("location")).toBe(
+      "/zh-hant/login?returnTo=%2Fzh-hant%2Fplayground",
+    );
   });
 
   it("allows public pages without a session", async () => {
     const response = (await onRequest(
-      routeContext("https://developer.soyaos.ai/docs", new MemoryCookies(), ENV),
+      routeContext("https://developer.soyaos.ai/en/docs", new MemoryCookies(), ENV),
       async () => new Response("public content"),
     )) as Response;
     expect(response.status).toBe(200);
@@ -265,7 +294,7 @@ describe("auth middleware", () => {
       createSession({ id: 12345, login: "octocat", name: null, avatarUrl: null }),
       ENV.SESSION_SECRET ?? "",
     );
-    const context = routeContext("https://developer.soyaos.ai/api-keys", cookies, ENV);
+    const context = routeContext("https://developer.soyaos.ai/en/api-keys", cookies, ENV);
     const response = (await onRequest(
       context,
       async () => new Response("protected content", { headers: { vary: "Accept-Encoding" } }),
@@ -288,14 +317,14 @@ describe("auth middleware", () => {
     );
     const response = (await onRequest(
       routeContext(
-        "https://developer.soyaos.ai/login?returnTo=%2Fapi-keys",
+        "https://developer.soyaos.ai/en/login?returnTo=%2Fen%2Fapi-keys",
         cookies,
         ENV,
       ),
       async () => new Response("sign-in page"),
     )) as Response;
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe("/api-keys");
+    expect(response.headers.get("location")).toBe("/en/api-keys");
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(response.headers.get("vary")).toBe("Cookie");
   });

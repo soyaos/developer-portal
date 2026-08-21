@@ -51,7 +51,12 @@ export function routeContext(
   const url = new URL(rawUrl);
   return {
     cookies: cookies.asAstroCookies(),
-    locals: { cfContext: {} as ExecutionContext, user: null },
+    locals: {
+      cfContext: {} as ExecutionContext,
+      user: null,
+      locale: "zh",
+      publicPath: url.pathname,
+    },
     request: new Request(url),
     url,
   } as never;
