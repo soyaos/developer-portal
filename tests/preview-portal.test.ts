@@ -66,4 +66,15 @@ describe("SoyaOS Cloud v0.2.0 stable Portal contract", () => {
     expect(JSON.stringify(englishDictionary())).toContain("All systems operational");
     expect(source("src/pages/status.astro")).toContain("getDictionary(locale).status");
   });
+
+  it("emits the complete SEO/GEO head only for indexable editorial pages", () => {
+    const layout = source("src/layouts/Base.astro");
+    expect(layout).toContain('rel="canonical"');
+    expect(layout).toContain('hreflang="x-default"');
+    expect(layout).toContain('type="text/markdown"');
+    expect(layout).toContain('property="og:locale"');
+    expect(layout).toContain('name="twitter:card"');
+    expect(layout).toContain('type="application/ld+json"');
+    expect(layout).toContain("!noindex &&");
+  });
 });

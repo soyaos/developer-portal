@@ -1,12 +1,19 @@
 ---
 import LocaleSwitcher from "../components/LocaleSwitcher.astro";
-import { getDictionary, localizePath, LOCALE_META } from "../lib/i18n";
+import {
+  getDictionary,
+  localizePath,
+  LOCALES,
+  LOCALE_META,
+} from "../lib/i18n";
 import "../styles/globals.css";
 
 interface Props {
   title?: string;
   description?: string;
   noindex?: boolean;
+  path?: string;
+  schemaType?: "WebSite" | "WebPage";
 }
 
 const locale = Astro.locals.locale;
@@ -15,9 +22,31 @@ const {
   title = dictionary.meta.defaultTitle,
   description = dictionary.meta.defaultDescription,
   noindex = false,
+  path = "/",
+  schemaType = "WebPage",
 } = Astro.props;
 const user = Astro.locals.user;
 const href = (path: string) => localizePath(locale, path);
+const cleanPath = path === "/" ? "" : path.replace(/\/$/, "");
+const canonical = `https://developer.soyaos.ai/${locale}${cleanPath}`;
+const markdownAlternate = `${canonical}.md`;
+const languageAlternates = LOCALES.map((candidate) => ({
+  hreflang: LOCALE_META[candidate].htmlLang,
+  href: `https://developer.soyaos.ai/${candidate}${cleanPath}`,
+}));
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": schemaType,
+  name: title,
+  description,
+  url: canonical,
+  inLanguage: LOCALE_META[locale].htmlLang,
+  isPartOf: {
+    "@type": "WebSite",
+    name: "SoyaOS Developer Portal",
+    url: "https://developer.soyaos.ai",
+  },
+};
 ---
 
 <!doctype html>
@@ -27,8 +56,27 @@ const href = (path: string) => localizePath(locale, path);
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex, nofollow" />}
+    {!noindex && <link rel="canonical" href={canonical} />}
+    {!noindex && languageAlternates.map((alternate) => (
+      <link rel="alternate" hreflang={alternate.hreflang} href={alternate.href} />
+    ))}
+    {!noindex && <link rel="alternate" hreflang="x-default" href={`https://developer.soyaos.ai/zh${cleanPath}`} />}
+    {!noindex && <link rel="alternate" type="text/markdown" href={markdownAlternate} />}
+    {!noindex && <meta property="og:type" content="website" />}
+    {!noindex && <meta property="og:site_name" content="SoyaOS Developer Portal" />}
+    {!noindex && <meta property="og:title" content={title} />}
+    {!noindex && <meta property="og:description" content={description} />}
+    {!noindex && <meta property="og:url" content={canonical} />}
+    {!noindex && <meta property="og:locale" content={LOCALE_META[locale].ogLocale} />}
+    {!noindex && LOCALES.filter((candidate) => candidate !== locale).map((candidate) => (
+      <meta property="og:locale:alternate" content={LOCALE_META[candidate].ogLocale} />
+    ))}
+    {!noindex && <meta name="twitter:card" content="summary" />}
+    {!noindex && <meta name="twitter:title" content={title} />}
+    {!noindex && <meta name="twitter:description" content={description} />}
     <link rel="icon" type="image/jpeg" href="/logo.jpg" />
     <link rel="apple-touch-icon" href="/logo.jpg" />
+    {!noindex && <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
     <title>{title}</title>
   </head>
   <body class="min-h-screen flex flex-col font-sans">

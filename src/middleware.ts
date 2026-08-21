@@ -81,8 +81,13 @@ export const onRequest: MiddlewareHandler = async (context, next) => {
 
   let pathname = rawPathname;
   let rewriteTarget: string | undefined;
+  const markdownMatch = rawPathname.match(
+    /^\/(zh|zh-hant|en)(?:\/(docs|terms|privacy))?\.md$/,
+  );
 
-  if (!bypassLocale) {
+  if (markdownMatch && isLocale(markdownMatch[1])) {
+    context.locals.locale = markdownMatch[1];
+  } else if (!bypassLocale) {
     const firstSegment = rawPathname.split("/")[1] ?? "";
     if (UNSUPPORTED_LOCALE_SEGMENTS.has(firstSegment.toLowerCase())) return notFound();
 

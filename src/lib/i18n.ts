@@ -31,8 +31,8 @@ const dictionaries: Record<Locale, PortalDictionary> = {
   "zh-hant": zhHant as PortalDictionary,
 };
 
-export function isLocale(value: string): value is Locale {
-  return (LOCALES as readonly string[]).includes(value);
+export function isLocale(value: string | null | undefined): value is Locale {
+  return !!value && (LOCALES as readonly string[]).includes(value);
 }
 
 export function getDictionary(locale: Locale): PortalDictionary {

@@ -6,7 +6,7 @@ const locale = Astro.locals.locale;
 const page = getDictionary(locale).docs;
 ---
 
-<Base title={page.title} description={page.description}>
+<Base title={page.title} description={page.description} path="/docs">
   <article class="max-w-3xl py-8">
     <h1 class="text-3xl font-semibold tracking-tight">{page.heading}</h1>
     <p class="mt-4 text-sm leading-6 text-soya-ink/70">{page.description}</p>

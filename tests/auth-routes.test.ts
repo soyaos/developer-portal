@@ -271,6 +271,29 @@ describe("auth middleware", () => {
     expect(await response.text()).toBe("public content");
   });
 
+  it("passes approved Markdown alternates without locale rewrites", async () => {
+    const context = routeContext(
+      "https://developer.soyaos.ai/zh-hant/privacy.md",
+      new MemoryCookies(),
+      ENV,
+    );
+    const next = vi.fn(async () => new Response("markdown content"));
+    const response = (await onRequest(context, next)) as Response;
+    expect(response.status).toBe(200);
+    expect(next).toHaveBeenCalledWith(undefined);
+    expect(response.headers.get("content-language")).toBe("zh-hant");
+  });
+
+  it("returns 404 for unsupported legacy locale segments", async () => {
+    const next = vi.fn(async () => new Response("must not run"));
+    const response = (await onRequest(
+      routeContext("https://developer.soyaos.ai/zh-CN/docs", new MemoryCookies(), ENV),
+      next,
+    )) as Response;
+    expect(response.status).toBe(404);
+    expect(next).not.toHaveBeenCalled();
+  });
+
   it("returns JSON 401 for anonymous control-plane requests", async () => {
     const response = (await onRequest(
       routeContext(
