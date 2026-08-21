@@ -46,6 +46,24 @@ async function expectPage(fetcher, name, url, markers) {
   }
 }
 
+async function expectMarkdown(fetcher, name, url, canonical, markers) {
+  const response = await fetchWithRetry(fetcher, url, { redirect: "error" });
+  invariant(response.status === 200, `${name}: expected 200, got ${response.status}`);
+  invariant(
+    response.headers.get("content-type") === "text/markdown; charset=utf-8",
+    `${name}: expected text/markdown`,
+  );
+  invariant(response.headers.get("x-robots-tag") === "noindex", `${name}: expected noindex`);
+  invariant(
+    response.headers.get("link") === `<${canonical}>; rel="canonical"`,
+    `${name}: invalid canonical Link`,
+  );
+  const body = await response.text();
+  for (const marker of markers) {
+    invariant(body.includes(marker), `${name}: missing contract marker ${marker}`);
+  }
+}
+
 async function expectNotFound(fetcher, path) {
   const response = await fetchWithRetry(fetcher, `${PORTAL}${path}`, {
     method: "POST",
@@ -69,17 +87,38 @@ export async function runProductionPreflight(fetcher = fetch) {
   };
 
   await check("portal-home", () =>
-    expectPage(fetcher, "portal-home", `${PORTAL}/`, ["SoyaOS", "v0.2.0 Stable", "/playground"]),
+    expectPage(fetcher, "portal-home", `${PORTAL}/en`, [
+      'lang="en-US"',
+      "v0.2.0 Stable",
+      "/en/playground",
+      'type="text/markdown"',
+      'href="https://developer.soyaos.ai/en.md"',
+    ]),
   );
   await check("portal-terms", () =>
-    expectPage(fetcher, "portal-terms", `${PORTAL}/terms`, ["Service terms", "no SLA"]),
+    expectPage(fetcher, "portal-terms", `${PORTAL}/en/terms`, ["Service terms", "no SLA"]),
   );
   await check("portal-privacy", () =>
-    expectPage(fetcher, "portal-privacy", `${PORTAL}/privacy`, [
+    expectPage(fetcher, "portal-privacy", `${PORTAL}/en/privacy`, [
       "Privacy notice",
       "Cloudflare Workers AI",
       "24 hours",
     ]),
+  );
+  await check("portal-home-markdown", () =>
+    expectMarkdown(fetcher, "portal-home-markdown", `${PORTAL}/en.md`, `${PORTAL}/en`, [
+      "# SoyaOS Developer Portal",
+      `Canonical HTML: ${PORTAL}/en`,
+    ]),
+  );
+  await check("portal-docs-markdown", () =>
+    expectMarkdown(
+      fetcher,
+      "portal-docs-markdown",
+      `${PORTAL}/en/docs.md`,
+      `${PORTAL}/en/docs`,
+      ["# Documentation", "https://soyaos.ai/en/docs"],
+    ),
   );
   await check("api-anonymous-contract", async () => {
     const response = await fetchWithRetry(fetcher, `${API}/v1/models`, { redirect: "error" });
@@ -96,15 +135,15 @@ export async function runProductionPreflight(fetcher = fetch) {
     );
   });
   await check("cloud-canonical-redirect", async () => {
-    const response = await fetchWithRetry(fetcher, `${CLOUD}/`, { redirect: "manual" });
+    const response = await fetchWithRetry(fetcher, `${CLOUD}/en`, { redirect: "manual" });
     invariant(response.status === 302, `cloud-canonical-redirect: expected 302, got ${response.status}`);
     invariant(
-      response.headers.get("location") === `${PORTAL}/`,
+      response.headers.get("location") === `${PORTAL}/en`,
       "cloud-canonical-redirect: invalid location",
     );
   });
   await check("public-status-page", () =>
-    expectPage(fetcher, "public-status-page", `${STATUS}/`, [
+    expectPage(fetcher, "public-status-page", `${STATUS}/en`, [
       "SoyaOS Cloud Status",
       "All systems operational",
       "v0.2.0",

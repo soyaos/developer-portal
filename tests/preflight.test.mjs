@@ -4,10 +4,32 @@ import { validateProductionSecretNames } from "../scripts/check-secret-names.mjs
 
 function productionFetch(overrides = {}) {
   const responses = {
-    "GET https://developer.soyaos.ai/": new Response("SoyaOS v0.2.0 Stable /playground"),
-    "GET https://developer.soyaos.ai/terms": new Response("Service terms · no SLA"),
-    "GET https://developer.soyaos.ai/privacy": new Response(
+    "GET https://developer.soyaos.ai/en": new Response(
+      '<html lang="en-US">SoyaOS v0.2.0 Stable /en/playground type="text/markdown" href="https://developer.soyaos.ai/en.md"</html>',
+    ),
+    "GET https://developer.soyaos.ai/en/terms": new Response("Service terms · no SLA"),
+    "GET https://developer.soyaos.ai/en/privacy": new Response(
       "Privacy notice · Cloudflare Workers AI · 24 hours",
+    ),
+    "GET https://developer.soyaos.ai/en.md": new Response(
+      "# SoyaOS Developer Portal\n\nCanonical HTML: https://developer.soyaos.ai/en",
+      {
+        headers: {
+          "content-type": "text/markdown; charset=utf-8",
+          "x-robots-tag": "noindex",
+          link: '<https://developer.soyaos.ai/en>; rel="canonical"',
+        },
+      },
+    ),
+    "GET https://developer.soyaos.ai/en/docs.md": new Response(
+      "# Documentation\n\nhttps://soyaos.ai/en/docs",
+      {
+        headers: {
+          "content-type": "text/markdown; charset=utf-8",
+          "x-robots-tag": "noindex",
+          link: '<https://developer.soyaos.ai/en/docs>; rel="canonical"',
+        },
+      },
     ),
     "GET https://api.soyaos.ai/v1/models": Response.json(
       { error: { type: "authentication_error", code: "invalid_api_key" } },
@@ -16,11 +38,11 @@ function productionFetch(overrides = {}) {
         headers: { "content-type": "application/json", "x-request-id": "req_test" },
       },
     ),
-    "GET https://cloud.soyaos.ai/": new Response(null, {
+    "GET https://cloud.soyaos.ai/en": new Response(null, {
       status: 302,
-      headers: { location: "https://developer.soyaos.ai/" },
+      headers: { location: "https://developer.soyaos.ai/en" },
     }),
-    "GET https://status.soyaos.ai/": new Response(
+    "GET https://status.soyaos.ai/en": new Response(
       "SoyaOS Cloud Status · All systems operational · v0.2.0",
     ),
     "POST https://developer.soyaos.ai/auth/e2e/session": new Response("not found", { status: 404 }),
@@ -39,7 +61,7 @@ describe("production preflight", () => {
   it("passes all read-only production contracts", async () => {
     const result = await runProductionPreflight(productionFetch());
     expect(result.result).toBe("pass");
-    expect(result.checks).toHaveLength(8);
+    expect(result.checks).toHaveLength(10);
     expect(result.checks.every((check) => check.result === "pass")).toBe(true);
   });
 
@@ -47,9 +69,9 @@ describe("production preflight", () => {
     await expect(
       runProductionPreflight(
         productionFetch({
-          "GET https://cloud.soyaos.ai/": new Response(null, {
+          "GET https://cloud.soyaos.ai/en": new Response(null, {
             status: 301,
-            headers: { location: "https://developer.soyaos.ai/" },
+            headers: { location: "https://developer.soyaos.ai/en" },
           }),
         }),
       ),
