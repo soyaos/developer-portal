@@ -1,0 +1,56 @@
+# Production inference smoke test
+
+Use this runbook once before opening a SoyaOS Cloud release to users. It checks
+the real authenticated production inference path with two short completions. It
+is not a recurring monitor and has no scheduled trigger.
+
+## Safety contract
+
+- The workflow is manual-only and fixed to `https://api.soyaos.ai` and
+  `soya:starter`.
+- The API key comes only from the `production-smoke` GitHub Environment secret
+  named `SOYAOS_PRODUCTION_SMOKE_API_KEY`.
+- The script logs only check names, result, latency, request IDs and aggregate
+  token usage. It never logs the key, Authorization header, prompt, completion
+  content or an error response body.
+- Each run sends one non-streaming and one streaming request with
+  `max_tokens: 16`. Cost-bearing POST requests are never retried.
+- Every response has a 30-second timeout and a 1 MiB body limit.
+
+## Prepare a disposable key
+
+1. Sign in at `https://developer.soyaos.ai`.
+2. Create a key named for the release smoke test and copy its one-time value.
+3. Open the `soyaos/developer-portal` repository on GitHub.
+4. Open **Settings → Environments → production-smoke**.
+5. Add or replace the Environment secret
+   `SOYAOS_PRODUCTION_SMOKE_API_KEY`, then paste the full one-time key.
+6. Do not paste the value into GitHub Actions inputs, Linear, chat, screenshots
+   or shell history.
+
+## Run and verify
+
+1. Open **Actions → Smoke production inference → Run workflow** on `main`.
+2. Confirm the run prints a top-level `"result": "pass"` and exactly three
+   passing checks: `models`, `chat-non-stream` and `chat-stream`.
+3. Record the three request IDs. The non-streaming result must also contain
+   non-negative `promptTokens`, `completionTokens` and `totalTokens`.
+4. In the Developer Portal, open **Usage** and search for each request ID.
+   Confirm both completion requests appear without prompt or response bodies.
+
+If a check fails, keep the key active while the failure is investigated. The
+failure report contains only a stable check/code pair and optional HTTP status;
+inspect Cloudflare body-free metadata using the request ID when available.
+
+## Clean up
+
+After all checks and Usage traces pass:
+
+1. Revoke the disposable API key in the Developer Portal.
+2. Delete `SOYAOS_PRODUCTION_SMOKE_API_KEY` from the `production-smoke`
+   GitHub Environment.
+3. Confirm rerunning the workflow now fails at `configuration` with
+   `missing_api_key` before any network request.
+
+The separate `Monitor production` workflow remains the recurring read-only
+availability check. Never add a schedule to the production inference smoke.

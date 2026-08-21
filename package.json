@@ -23,6 +23,7 @@
     "d1:migrate:staging": "wrangler d1 migrations apply DB --remote --env staging",
     "preflight:production": "node scripts/preflight.mjs",
     "preflight:production:secrets": "node scripts/check-secret-names.mjs",
+    "smoke:production": "node scripts/production-smoke.mjs",
     "security:audit": "npm audit --omit=dev --audit-level=high && gitleaks git --no-banner --redact ."
   },
   "dependencies": {
