@@ -7,9 +7,12 @@ const REQUEST_ID_PATTERN = /^req_[a-f0-9]{32}$/;
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RESPONSE_BYTES = 1_048_576;
 const SMOKE_PROMPT = "Reply with exactly one lowercase word: ready";
+const DEFAULT_ROUNDS = 1;
+const MAX_ROUNDS = 5;
+const SMOKE_MODES = new Set(["full", "models-only"]);
 
 export class ProductionSmokeFailure extends Error {
-  constructor(check, code, status = null, requestId = null) {
+  constructor(check, code, status = null, requestId = null, round = null) {
     super(`${check}: ${code}`);
     this.name = "ProductionSmokeFailure";
     this.check = check;
@@ -18,6 +21,7 @@ export class ProductionSmokeFailure extends Error {
     this.requestId = typeof requestId === "string" && REQUEST_ID_PATTERN.test(requestId)
       ? requestId
       : null;
+    this.round = Number.isInteger(round) && round >= 1 && round <= MAX_ROUNDS ? round : null;
   }
 }
 
@@ -31,6 +35,18 @@ function isRecord(value) {
 
 function nonNegativeInteger(value) {
   return Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
+function parseMode(value) {
+  const mode = typeof value === "string" ? value.trim() : "";
+  if (!SMOKE_MODES.has(mode)) fail("configuration", "invalid_mode");
+  return mode;
+}
+
+function parseRounds(value) {
+  const normalized = String(value).trim();
+  if (!/^[1-5]$/.test(normalized)) fail("configuration", "invalid_rounds");
+  return Number(normalized);
 }
 
 function requiredRequestId(response, check) {
@@ -228,6 +244,15 @@ async function timedCheck(name, operation, clock) {
   };
 }
 
+async function timedRoundCheck(name, round, operation, clock) {
+  try {
+    return { round, ...await timedCheck(name, operation, clock) };
+  } catch (error) {
+    if (error instanceof ProductionSmokeFailure) error.round = round;
+    throw error;
+  }
+}
+
 export async function runProductionSmoke(options = {}) {
   const fetcher = options.fetcher ?? fetch;
   const clock = options.clock ?? performance.now.bind(performance);
@@ -235,21 +260,53 @@ export async function runProductionSmoke(options = {}) {
   const apiKey = typeof options.apiKey === "string"
     ? options.apiKey.trim()
     : (process.env.SOYAOS_PRODUCTION_SMOKE_API_KEY ?? "").trim();
+  const mode = parseMode(
+    options.mode ?? process.env.SOYAOS_PRODUCTION_SMOKE_MODE ?? "full",
+  );
+  const rounds = parseRounds(
+    options.rounds ?? process.env.SOYAOS_PRODUCTION_SMOKE_ROUNDS ?? DEFAULT_ROUNDS,
+  );
 
   if (!apiKey) fail("configuration", "missing_api_key");
   if (!API_KEY_PATTERN.test(apiKey)) fail("configuration", "invalid_api_key_format");
+  if (mode === "models-only" && rounds !== 1) {
+    fail("configuration", "models_only_requires_one_round");
+  }
 
   const checks = [];
   checks.push(await timedCheck("models", () => checkModels(fetcher, apiKey), clock));
-  checks.push(
-    await timedCheck("chat-non-stream", () => checkNonStreaming(fetcher, apiKey), clock),
-  );
-  checks.push(await timedCheck("chat-stream", () => checkStreaming(fetcher, apiKey), clock));
+
+  if (mode === "full") {
+    for (let round = 1; round <= rounds; round += 1) {
+      checks.push(
+        await timedRoundCheck(
+          "chat-non-stream",
+          round,
+          () => checkNonStreaming(fetcher, apiKey),
+          clock,
+        ),
+      );
+      checks.push(
+        await timedRoundCheck(
+          "chat-stream",
+          round,
+          () => checkStreaming(fetcher, apiKey),
+          clock,
+        ),
+      );
+    }
+  }
+
+  const expectedChatRequests = mode === "full" ? rounds * 2 : 0;
 
   return {
     environment: "production",
     checkedAt: now().toISOString(),
     result: "pass",
+    mode,
+    rounds,
+    expectedChatRequests,
+    passedChatRequests: expectedChatRequests,
     checks,
   };
 }
@@ -264,6 +321,7 @@ export function productionSmokeFailureReport(error, checkedAt = new Date().toISO
     code: failure?.code ?? "unexpected_failure",
     ...(failure?.status === null ? {} : { status: failure.status }),
     ...(failure?.requestId === null ? {} : { requestId: failure.requestId }),
+    ...(failure?.round === null ? {} : { round: failure.round }),
   };
 }
 

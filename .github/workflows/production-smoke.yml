@@ -2,6 +2,26 @@ name: Smoke production inference
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Check mode; use models-only only for revoked-key verification
+        required: true
+        default: full
+        type: choice
+        options:
+          - full
+          - models-only
+      rounds:
+        description: Full-mode rounds; each round sends exactly two Chat requests
+        required: true
+        default: "1"
+        type: choice
+        options:
+          - "1"
+          - "2"
+          - "3"
+          - "4"
+          - "5"
 
 permissions:
   contents: read
@@ -12,9 +32,9 @@ concurrency:
 
 jobs:
   smoke:
-    name: Exercise production inference once
+    name: Exercise production inference safely
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     environment: production-smoke
     steps:
       - name: Checkout
@@ -29,3 +49,5 @@ jobs:
         run: npm run smoke:production
         env:
           SOYAOS_PRODUCTION_SMOKE_API_KEY: ${{ secrets.SOYAOS_PRODUCTION_SMOKE_API_KEY }}
+          SOYAOS_PRODUCTION_SMOKE_MODE: ${{ inputs.mode }}
+          SOYAOS_PRODUCTION_SMOKE_ROUNDS: ${{ inputs.rounds }}

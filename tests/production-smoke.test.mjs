@@ -40,18 +40,6 @@ function smokeFetch(overrides = {}) {
       { object: "list", data: [{ id: "soya:starter", object: "model" }] },
       `req_${"1".repeat(32)}`,
     ),
-    "POST-1 https://api.soyaos.ai/v1/chat/completions": jsonResponse(
-      {
-        object: "chat.completion",
-        model: "soya:starter",
-        choices: [{ message: { role: "assistant", content: MODEL_OUTPUT } }],
-        usage: { prompt_tokens: 8, completion_tokens: 1, total_tokens: 9 },
-      },
-      `req_${"2".repeat(32)}`,
-    ),
-    "POST-2 https://api.soyaos.ai/v1/chat/completions": streamResponse(
-      `req_${"3".repeat(32)}`,
-    ),
     ...overrides,
   };
   const requests = [];
@@ -59,7 +47,19 @@ function smokeFetch(overrides = {}) {
     requests.push({ input: String(input), init });
     const postCount = requests.filter((request) => request.init.method === "POST").length;
     const key = `${init.method ?? "GET"}${init.method === "POST" ? `-${postCount}` : ""} ${String(input)}`;
-    const response = responses[key];
+    const requestId = `req_${(postCount + 1).toString(16).repeat(32)}`;
+    const defaultPostResponse = postCount % 2 === 1
+      ? jsonResponse(
+        {
+          object: "chat.completion",
+          model: "soya:starter",
+          choices: [{ message: { role: "assistant", content: MODEL_OUTPUT } }],
+          usage: { prompt_tokens: 8, completion_tokens: 1, total_tokens: 9 },
+        },
+        requestId,
+      )
+      : streamResponse(requestId);
+    const response = responses[key] ?? (init.method === "POST" ? defaultPostResponse : null);
     if (!response) throw new Error(`unexpected request ${key}`);
     return response.clone();
   });
@@ -82,6 +82,10 @@ describe("one-shot production inference smoke", () => {
     expect(result).toMatchObject({
       environment: "production",
       result: "pass",
+      mode: "full",
+      rounds: 1,
+      expectedChatRequests: 2,
+      passedChatRequests: 2,
       checks: [
         { name: "models", result: "pass", requestId: `req_${"1".repeat(32)}` },
         {
@@ -110,6 +114,92 @@ describe("one-shot production inference smoke", () => {
     expect(serializedResult).not.toContain(TEST_KEY);
     expect(serializedResult).not.toContain(FIXED_PROMPT);
     expect(serializedResult).not.toContain(MODEL_OUTPUT);
+  });
+
+  it("runs five bounded rounds as exactly ten sequential Chat requests", async () => {
+    const { fetcher, requests } = smokeFetch();
+    const result = await runProductionSmoke({
+      apiKey: TEST_KEY,
+      fetcher,
+      rounds: 5,
+      now: () => new Date("2026-08-20T00:00:00.000Z"),
+    });
+
+    expect(result).toMatchObject({
+      mode: "full",
+      rounds: 5,
+      expectedChatRequests: 10,
+      passedChatRequests: 10,
+      result: "pass",
+    });
+    expect(result.checks).toHaveLength(11);
+    expect(result.checks.slice(1).map(({ name, round }) => ({ name, round }))).toEqual(
+      Array.from({ length: 5 }, (_, index) => [
+        { name: "chat-non-stream", round: index + 1 },
+        { name: "chat-stream", round: index + 1 },
+      ]).flat(),
+    );
+    expect(requests).toHaveLength(11);
+    expect(requests.filter(({ init }) => init.method === "POST")).toHaveLength(10);
+    expect(JSON.stringify(result)).not.toContain(MODEL_OUTPUT);
+  });
+
+  it("supports a read-only models mode for revoked-key verification", async () => {
+    const { fetcher, requests } = smokeFetch();
+    const result = await runProductionSmoke({
+      apiKey: TEST_KEY,
+      fetcher,
+      mode: "models-only",
+      rounds: 1,
+    });
+
+    expect(result).toMatchObject({
+      mode: "models-only",
+      rounds: 1,
+      expectedChatRequests: 0,
+      passedChatRequests: 0,
+      result: "pass",
+    });
+    expect(result.checks).toHaveLength(1);
+    expect(result.checks[0].name).toBe("models");
+    expect(requests).toHaveLength(1);
+    expect(requests[0].init.method).toBeUndefined();
+  });
+
+  it.each([0, 6, 2.5, "05", "many"])(
+    "rejects invalid rounds %s before networking",
+    async (rounds) => {
+      const fetcher = vi.fn();
+      const error = await runProductionSmoke({ apiKey: TEST_KEY, fetcher, rounds }).catch(
+        (cause) => cause,
+      );
+      expect(productionSmokeFailureReport(error)).toMatchObject({
+        check: "configuration",
+        code: "invalid_rounds",
+      });
+      expect(fetcher).not.toHaveBeenCalled();
+    },
+  );
+
+  it("stops on the first failed Chat request without retrying or starting the next check", async () => {
+    const { fetcher, requests } = smokeFetch({
+      "POST-3 https://api.soyaos.ai/v1/chat/completions": new Response(ERROR_BODY, {
+        status: 503,
+        headers: { "x-request-id": `req_${"4".repeat(32)}` },
+      }),
+    });
+    const error = await runProductionSmoke({ apiKey: TEST_KEY, fetcher, rounds: 5 }).catch(
+      (cause) => cause,
+    );
+
+    expect(productionSmokeFailureReport(error)).toMatchObject({
+      check: "chat-non-stream",
+      code: "unexpected_status",
+      status: 503,
+      round: 2,
+    });
+    expect(requests).toHaveLength(4);
+    expect(requests.filter(({ init }) => init.method === "POST")).toHaveLength(3);
   });
 
   it("fails before networking when the production API key is absent", async () => {
@@ -198,6 +288,10 @@ describe("production smoke workflow", () => {
     expect(workflow).toMatch(/workflow_dispatch:/);
     expect(workflow).toMatch(/environment: production-smoke/);
     expect(workflow).toContain("secrets.SOYAOS_PRODUCTION_SMOKE_API_KEY");
+    expect(workflow).toContain("SOYAOS_PRODUCTION_SMOKE_MODE: ${{ inputs.mode }}");
+    expect(workflow).toContain("SOYAOS_PRODUCTION_SMOKE_ROUNDS: ${{ inputs.rounds }}");
+    expect(workflow).toMatch(/options:\s+\- full\s+\- models-only/);
+    expect(workflow).toMatch(/options:\s+\- "1"[\s\S]+\- "5"/);
     expect(workflow).not.toMatch(/^\s+schedule:/m);
     expect(workflow).not.toMatch(/^\s+push:/m);
     expect(workflow).not.toMatch(/^\s+pull_request:/m);
