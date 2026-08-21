@@ -108,7 +108,7 @@ export async function listPlaygroundModels(
     throw new PlaygroundApiError(
       502,
       "no_models",
-      "No Preview models are currently available.",
+      "No models are currently available.",
       response.headers.get("x-request-id"),
       null,
     );

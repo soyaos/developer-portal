@@ -69,10 +69,10 @@ export async function runProductionPreflight(fetcher = fetch) {
   };
 
   await check("portal-home", () =>
-    expectPage(fetcher, "portal-home", `${PORTAL}/`, ["SoyaOS", "Public Preview", "/playground"]),
+    expectPage(fetcher, "portal-home", `${PORTAL}/`, ["SoyaOS", "v0.2.0 Stable", "/playground"]),
   );
   await check("portal-terms", () =>
-    expectPage(fetcher, "portal-terms", `${PORTAL}/terms`, ["Preview terms", "no SLA"]),
+    expectPage(fetcher, "portal-terms", `${PORTAL}/terms`, ["Service terms", "no SLA"]),
   );
   await check("portal-privacy", () =>
     expectPage(fetcher, "portal-privacy", `${PORTAL}/privacy`, [
@@ -107,7 +107,7 @@ export async function runProductionPreflight(fetcher = fetch) {
     expectPage(fetcher, "public-status-page", `${STATUS}/`, [
       "SoyaOS Cloud Status",
       "All systems operational",
-      "Public Preview",
+      "v0.2.0",
     ]),
   );
   await check("production-e2e-session-disabled", () => expectNotFound(fetcher, "/auth/e2e/session"));

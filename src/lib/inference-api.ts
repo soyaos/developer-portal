@@ -319,7 +319,7 @@ function validateChatRequest(body: unknown): ValidatedChatRequest {
     throw new InferenceApiError(400, "invalid_top_p", "top_p must be greater than 0 and at most 1.");
   }
   if (body.tools !== undefined || body.tool_choice !== undefined) {
-    throw new InferenceApiError(400, "unsupported_tools", "Tool calls are not available in Public Preview.");
+    throw new InferenceApiError(400, "unsupported_tools", "Tool calls are not available in SoyaOS Cloud v0.2.0.");
   }
 
   const promptTokens = messages.reduce(

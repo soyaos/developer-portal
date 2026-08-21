@@ -5,13 +5,13 @@
 # developer-portal
 
 > [!NOTE]
-> **v0.2.0 Public Preview**
+> **v0.2.0 Stable**
 >
-> 免费、单区域、best-effort、无 SLA。Preview 期间接口仍可能发生不向后
-> 兼容的变更，不建议承载关键生产工作负载。
+> 免费、单区域、best-effort、无 SLA。v0.2.0 的公开合同保持稳定；后续破坏性
+> 变更需要新的版本，不建议承载关键生产或受监管工作负载。
 >
-> Free single-region preview, best effort, no SLA. Interfaces may still change
-> without notice and should not be used for critical production workloads.
+> Free single-region stable release, best effort, no SLA. Breaking contract
+> changes require a later version; do not use it for critical or regulated workloads.
 
 Source for **[developer.soyaos.ai](https://developer.soyaos.ai)** — the
 SoyaOS Developer Portal.
@@ -19,7 +19,7 @@ SoyaOS Developer Portal.
 It hosts four surfaces that all share a single Astro + React + Tailwind
 codebase:
 
-| Surface              | Path                | Status (Public Preview) |
+| Surface              | Path                | Status (v0.2.0) |
 | -------------------- | ------------------- | -------------- |
 | API Reference        | `/docs`       | iframe to docs.soyaos.ai |
 | Playground           | `/playground` | live browser inference   |
@@ -120,7 +120,7 @@ production must never share D1, OAuth credentials, `SESSION_SECRET`, or
 
 ## Cloud inference API
 
-The Public Preview exposes an OpenAI-compatible subset at
+SoyaOS Cloud v0.2.0 exposes an OpenAI-compatible subset at
 `https://api.soyaos.ai`. Create an API key in the Developer Portal, then run:
 
 ```bash
@@ -136,7 +136,7 @@ Supported endpoints are `GET /v1/models` and
 Workers AI model without exposing the provider model ID. Streaming uses
 OpenAI-style server-sent events and terminates with `data: [DONE]`.
 
-Preview quotas are enforced per tenant in D1: 20 requests/minute, two
+Free v0.2.0 quotas are enforced per tenant in D1: 20 requests/minute, two
 concurrent requests, 100 requests/day, and 100,000 reserved tokens/day.
 Responses include `x-request-id`; quota errors also include `retry-after`.
 Prompt and completion bodies are never persisted.

@@ -78,7 +78,7 @@ export function CreateApiKeyDialog({ open, onOpenChange, onCreate, onCreated }: 
         <p className="mt-1 text-xs text-soya-ink/60">
           {issued
             ? "Copy this key now — it will never be shown again."
-            : "The Preview key can list models and call chat completions."}
+            : "This API key can list models and call chat completions."}
         </p>
       </DialogHeader>
 
@@ -109,7 +109,7 @@ export function CreateApiKeyDialog({ open, onOpenChange, onCreate, onCreated }: 
             <span className="text-xs font-medium tracking-tight text-soya-ink/80">Key name</span>
             <Input
               className="mt-1"
-              placeholder="preview-smoke-test"
+              placeholder="my-cloud-key"
               value={name}
               maxLength={64}
               onChange={(event) => setName(event.target.value)}

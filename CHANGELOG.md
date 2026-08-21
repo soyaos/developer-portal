@@ -7,32 +7,44 @@ and this site adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-08-20
+
 ### Added
 
-- Real GitHub OAuth on Cloudflare Workers SSR: `/auth/github/start` now issues
-  a one-shot state cookie and redirects to GitHub, while the callback
-  exchanges the code, reads the real GitHub identity, and discards the
-  provider token.
-- AES-GCM encrypted `__Host-soyaos_session` cookies, auth middleware for API
-  Keys / Usage / Webhook Debugger, and a POST-only `/auth/logout` endpoint.
-  Runtime credentials are read only from Cloudflare Worker secrets.
-- `/login` now points the GitHub button at the real start page and
-  reserves a SAML SSO slot for enterprise editions.
-- `/api-keys` surface: list / create / revoke API keys with mock data,
-  one-time raw-key reveal dialog, and per-key scope checkboxes. Adds the
-  first batch of in-house shadcn/ui primitives (`button`, `card`,
-  `input`, `badge`, `dialog`, plus a `cn` helper) under
-  `src/components/ui/`.
-- `/webhook-debugger` surface: live inbound feed for a selected Channel
-  binding (DingTalk / Feishu / WeChat mocks), with raw JSON ↔ canonical
-  `Message` split view, Pause/Resume + Clear, and a 100-event LRU buffer.
-  Driven by a mock `setInterval`; a TODO points at the real SSE endpoint
-  `GET /control/v0/connectors/bindings/{id}/feed`.
-- `/usage` surface: per-key &times; agent &times; sandbox-image quota
-  dashboard with Today / 7d / 30d tabs, four KPI cards (Calls, vCPU·s,
-  GPU·s, Bytes out), a column-sortable breakdown table and an inline
-  reminder of the 100ms-granularity billing rule. Adds a `tabs.tsx`
-  shadcn primitive. Real wiring placeholder: `GET /control/v0/usage`.
+- Real GitHub OAuth with one-shot state cookies, encrypted Portal sessions,
+  personal tenants and POST-only logout.
+- D1-backed API Key creation, one-time raw-key reveal, HMAC storage, listing
+  and revocation with strict tenant isolation.
+- OpenAI-compatible `GET /v1/models` and streaming/non-streaming
+  `POST /v1/chat/completions` backed by the managed `soya:starter` model.
+- Real daily usage and 24-hour request Trace views without storing prompt or
+  completion bodies.
+- Server-side RPM, concurrency, daily request and daily token limits with
+  stable error codes and `Retry-After` guidance.
+- A fail-closed D1 operational switch that pauses only new API Key creation
+  while existing keys, inference, listing and revocation continue to work.
+- Public status page, canonical `cloud.soyaos.ai` redirect, production
+  monitoring, controlled inference smoke and sanitized staging E2E gates.
+
+### Changed
+
+- Promoted SoyaOS Cloud from `v0.2.0-preview.1` to the stable `v0.2.0`
+  contract while retaining the free, single-region, best-effort, no-SLA
+  service boundary.
+- Replaced Preview labels in the Portal, service terms, privacy notice,
+  status page and operational documentation with the released v0.2.0
+  boundary.
+
+### Security
+
+- Production and staging use independent D1 databases, OAuth credentials,
+  session secrets, API Key peppers and protected E2E bootstrap routes.
+- Logs and reports fail closed on API Keys, Authorization headers, sessions,
+  prompts and responses; production preflight confirms staging-only routes
+  remain unavailable.
+- The v0.2.0 promotion completed ten controlled production Chat calls with
+  zero platform errors, revoked the disposable Key, verified HTTP 401, and
+  removed the temporary GitHub Environment secret.
 
 ## [0.1.0-alpha.0] — 2026-05-19
 
@@ -49,5 +61,6 @@ and this site adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Base layout under `src/layouts/Base.astro` with site nav.
 - Tailwind global stylesheet under `src/styles/globals.css`.
 
-[Unreleased]: https://github.com/soyaos/developer-portal/compare/v0.1.0-alpha.0...HEAD
+[Unreleased]: https://github.com/soyaos/developer-portal/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/soyaos/developer-portal/releases/tag/v0.2.0
 [0.1.0-alpha.0]: https://github.com/soyaos/developer-portal/releases/tag/v0.1.0-alpha.0

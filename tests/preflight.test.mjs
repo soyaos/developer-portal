@@ -4,8 +4,8 @@ import { validateProductionSecretNames } from "../scripts/check-secret-names.mjs
 
 function productionFetch(overrides = {}) {
   const responses = {
-    "GET https://developer.soyaos.ai/": new Response("SoyaOS Public Preview /playground"),
-    "GET https://developer.soyaos.ai/terms": new Response("Preview terms · no SLA"),
+    "GET https://developer.soyaos.ai/": new Response("SoyaOS v0.2.0 Stable /playground"),
+    "GET https://developer.soyaos.ai/terms": new Response("Service terms · no SLA"),
     "GET https://developer.soyaos.ai/privacy": new Response(
       "Privacy notice · Cloudflare Workers AI · 24 hours",
     ),
@@ -21,7 +21,7 @@ function productionFetch(overrides = {}) {
       headers: { location: "https://developer.soyaos.ai/" },
     }),
     "GET https://status.soyaos.ai/": new Response(
-      "SoyaOS Cloud Status · All systems operational · Public Preview",
+      "SoyaOS Cloud Status · All systems operational · v0.2.0",
     ),
     "POST https://developer.soyaos.ai/auth/e2e/session": new Response("not found", { status: 404 }),
     "POST https://developer.soyaos.ai/auth/e2e/reset": new Response("not found", { status: 404 }),

@@ -1,6 +1,6 @@
-# SoyaOS Cloud Public Preview 生产监控与告警
+# SoyaOS Cloud v0.2.0 生产监控与告警
 
-本文是 `v0.2.0-preview.1` 的值班手册。目标是在不持有用户凭证、不写入生产数据的
+本文是稳定版 `v0.2.0` 的值班手册。目标是在不持有用户凭证、不写入生产数据的
 前提下，持续发现公开入口不可用，并让 429、平台 5xx、延迟、Trace 写入失败和 Workers
 AI 用量都能被定位和处置。
 
@@ -11,12 +11,12 @@ AI 用量都能被定位和处置。
 | Portal、API、Cloud 别名、状态页和生产 E2E 路由门禁 | GitHub Actions `Monitor production` | 每 5 分钟 | [Actions](https://github.com/soyaos/developer-portal/actions/workflows/production-monitor.yml) |
 | 请求量、错误率、CPU、执行时长 | Cloudflare Workers Metrics | 实时聚合 | Workers & Pages → `soyaos-developer-portal` → Metrics |
 | 429、5xx、延迟和 token 数 | Workers Logs 结构化事件 | 100% 采样；按当前套餐保留 | Workers & Pages → `soyaos-developer-portal` → Observability |
-| Worker、AI、D1 调用链 | Cloudflare Workers Traces | 100% 采样（Preview 低流量期） | 同上 → Traces |
+| Worker、AI、D1 调用链 | Cloudflare Workers Traces | 100% 采样（当前低流量期） | 同上 → Traces |
 | Trace / 用量元数据写入失败 | `soyaos.inference.metadata_write_failed` | 每次失败一条 | 同上 → Logs / Query Builder |
 | Workers AI Neurons 和费用 | Cloudflare Workers AI Usage | 每日检查；故障时立即检查 | AI → Workers AI → Usage |
 
 定时探测只执行八项公开只读合同，不登录、不创建 Key，也不发送真实推理请求。GitHub
-Actions 的计划任务可能因平台繁忙而延迟，因此它是 Preview 告警，不是 SLA 探针。
+Actions 的计划任务可能因平台繁忙而延迟，因此它是运行告警，不是 SLA 探针。
 
 ## 一次性开启失败通知
 
@@ -141,7 +141,7 @@ staging 演练使用同样 SQL，但数据库参数必须替换为 `DB --remote 
 1. 按 `errorCode` 分组：`rate_limit`、`concurrency_limit`、`daily_request_limit`、
    `daily_token_limit` 是用户配额命中，不等同平台故障。
 2. 检查是否集中在异常 IP / 自动化调用；不得把租户 ID 或 Key 加进长期日志。
-3. 如果 429 来自大范围正常用户，停止扩大发布并评估容量；Preview 期间不临时提高单用户
+3. 如果 429 来自大范围正常用户，停止扩大发布并评估容量；v0.2.0 期间不临时提高单用户
    合同配额。
 
 ## 手动验证命令

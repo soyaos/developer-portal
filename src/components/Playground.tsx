@@ -35,7 +35,7 @@ export function formatPlaygroundError(cause: unknown, apiKey = ""): string {
     if (cause.status === 401) {
       message = "This API key is invalid or revoked. Create or copy an active key and try again.";
     } else if (cause.status === 429) {
-      message = `Preview quota reached (${cause.code}).${retry}`;
+      message = `Free quota reached (${cause.code}).${retry}`;
     } else {
       message = `${cause.message} (${cause.code}).${retry}`;
     }

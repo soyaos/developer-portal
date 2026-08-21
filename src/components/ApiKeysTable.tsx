@@ -180,7 +180,7 @@ export function ApiKeysTable() {
       </div>
 
       {keys.length >= 3 && (
-        <p className="text-xs text-soya-ink/60">Preview limit reached: revoke a key before creating another.</p>
+        <p className="text-xs text-soya-ink/60">Active key limit reached: revoke a key before creating another.</p>
       )}
 
       <CreateApiKeyDialog

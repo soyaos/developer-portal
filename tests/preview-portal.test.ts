@@ -5,7 +5,7 @@ function source(relativePath: string): string {
   return readFileSync(new URL(`../${relativePath}`, import.meta.url), "utf8");
 }
 
-describe("Public Preview Portal contract", () => {
+describe("SoyaOS Cloud v0.2.0 stable Portal contract", () => {
   it("protects the Playground and links it from the real user flow", () => {
     const middleware = source("src/middleware.ts");
     const layout = source("src/layouts/Base.astro");
