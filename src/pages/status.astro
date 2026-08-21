@@ -1,10 +1,23 @@
 ---
-import { getDictionary, LOCALE_META } from "../lib/i18n";
+import { getDictionary, LOCALES, LOCALE_META } from "../lib/i18n";
 
 export const prerender = false;
 const locale = Astro.locals.locale;
 const page = getDictionary(locale).status;
 const endpoints = ["developer.soyaos.ai", "api.soyaos.ai", "Cloudflare Workers AI"];
+const canonical = `https://status.soyaos.ai/${locale}`;
+const alternates = LOCALES.map((candidate) => ({
+  hreflang: LOCALE_META[candidate].htmlLang,
+  href: `https://status.soyaos.ai/${candidate}`,
+}));
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  name: page.title,
+  description: page.description,
+  url: canonical,
+  inLanguage: LOCALE_META[locale].htmlLang,
+};
 ---
 
 <!doctype html>
@@ -13,6 +26,18 @@ const endpoints = ["developer.soyaos.ai", "api.soyaos.ai", "Cloudflare Workers A
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
     <meta name="description" content={page.description} />
+    <link rel="canonical" href={canonical} />
+    {alternates.map((alternate) => <link rel="alternate" hreflang={alternate.hreflang} href={alternate.href} />)}
+    <link rel="alternate" hreflang="x-default" href="https://status.soyaos.ai/zh" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={page.title} />
+    <meta property="og:description" content={page.description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content={LOCALE_META[locale].ogLocale} />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={page.title} />
+    <meta name="twitter:description" content={page.description} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
     <title>{page.title}</title>
     <style>
       :root { color-scheme: light; font-family: ui-sans-serif, system-ui, sans-serif; color: #18221b; background: #f5f7f3; }
@@ -23,10 +48,19 @@ const endpoints = ["developer.soyaos.ai", "api.soyaos.ai", "Cloudflare Workers A
       .component { display: flex; justify-content: space-between; gap: 1rem; border-top: 1px solid #dce3dd; padding: 1rem 0; }
       .component small { display: block; margin-top: .25rem; color: #718077; } .state { color: #166534; font-weight: 700; }
       footer { margin-top: 3rem; font-size: .8rem; } a { color: #236b42; }
+      .toolbar { display: flex; justify-content: flex-end; } select { border: 1px solid #cbd5cc; border-radius: .5rem; background: white; padding: .45rem .7rem; color: inherit; }
     </style>
   </head>
   <body>
     <main>
+      <div class="toolbar">
+        <label>
+          <span hidden>{getDictionary(locale).chrome.language}</span>
+          <select id="status-locale" aria-label={getDictionary(locale).chrome.language}>
+            {LOCALES.map((candidate) => <option value={candidate} selected={candidate === locale}>{LOCALE_META[candidate].nativeName}</option>)}
+          </select>
+        </label>
+      </div>
       <div class="eyebrow">{page.eyebrow}</div>
       <h1>{page.title}</h1>
       <p>{page.intro}</p>
@@ -41,5 +75,11 @@ const endpoints = ["developer.soyaos.ai", "api.soyaos.ai", "Cloudflare Workers A
       </section>
       <footer><p>{page.footerBefore} <a href="https://github.com/soyaos/developer-portal/actions">{page.history}</a>。</p></footer>
     </main>
+    <script>
+      const localeSelect = document.querySelector("#status-locale") as HTMLSelectElement | null;
+      localeSelect?.addEventListener("change", () => {
+        window.location.assign(`/${localeSelect.value}${window.location.search}${window.location.hash}`);
+      });
+    </script>
   </body>
 </html>

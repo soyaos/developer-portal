@@ -45,6 +45,63 @@ function productionFetch(overrides = {}) {
     "GET https://status.soyaos.ai/en": new Response(
       "SoyaOS Cloud Status · All systems operational · v0.2.0",
     ),
+    "GET https://developer.soyaos.ai/robots.txt": new Response(
+      "User-agent: *\nAllow: /\nDisallow: /control/\nSitemap: https://developer.soyaos.ai/sitemap.xml\n",
+      { headers: { "content-type": "text/plain; charset=utf-8" } },
+    ),
+    "GET https://developer.soyaos.ai/sitemap.xml": new Response(
+      '<urlset><url><loc>https://developer.soyaos.ai/zh</loc><xhtml:link hreflang="x-default" /></url><url><loc>https://developer.soyaos.ai/zh-hant/privacy</loc></url><url><loc>https://developer.soyaos.ai/en/docs</loc></url></urlset>',
+      { headers: { "content-type": "application/xml; charset=utf-8" } },
+    ),
+    "GET https://developer.soyaos.ai/llms.txt": new Response(
+      "# SoyaOS Developer Portal\nhttps://developer.soyaos.ai/zh.md\nhttps://developer.soyaos.ai/zh-hant/terms.md\nhttps://developer.soyaos.ai/en/privacy.md",
+      { headers: { "content-type": "text/markdown; charset=utf-8" } },
+    ),
+    "GET https://status.soyaos.ai/robots.txt": new Response(
+      "Sitemap: https://status.soyaos.ai/sitemap.xml",
+      { headers: { "content-type": "text/plain; charset=utf-8" } },
+    ),
+    "GET https://status.soyaos.ai/sitemap.xml": new Response(
+      "<loc>https://status.soyaos.ai/zh</loc><loc>https://status.soyaos.ai/zh-hant</loc><loc>https://status.soyaos.ai/en</loc>",
+      { headers: { "content-type": "application/xml; charset=utf-8" } },
+    ),
+    "GET https://status.soyaos.ai/llms.txt": new Response(
+      "# SoyaOS Cloud Status\nhttps://status.soyaos.ai/zh-hant",
+      { headers: { "content-type": "text/markdown; charset=utf-8" } },
+    ),
+    "GET https://api.soyaos.ai/robots.txt": new Response(
+      "Disallow: /\nAllow: /llms.txt\nSitemap: https://soyaos.ai/sitemap.xml",
+      { headers: { "content-type": "text/plain; charset=utf-8" } },
+    ),
+    "GET https://api.soyaos.ai/llms.txt": new Response(
+      "# SoyaOS API\nhttps://soyaos.ai/en/docs/http-api.md",
+      { headers: { "content-type": "text/markdown; charset=utf-8" } },
+    ),
+    "GET https://api.soyaos.ai/sitemap.xml": new Response(null, {
+      status: 308,
+      headers: { location: "https://soyaos.ai/sitemap.xml" },
+    }),
+    "GET https://cloud.soyaos.ai/robots.txt": new Response(null, {
+      status: 302,
+      headers: { location: "https://developer.soyaos.ai/robots.txt" },
+    }),
+    "GET https://cloud.soyaos.ai/sitemap.xml": new Response(null, {
+      status: 302,
+      headers: { location: "https://developer.soyaos.ai/sitemap.xml" },
+    }),
+    "GET https://cloud.soyaos.ai/llms.txt": new Response(null, {
+      status: 302,
+      headers: { location: "https://developer.soyaos.ai/llms.txt" },
+    }),
+    "GET https://developer-staging.soyaos.ai/robots.txt": new Response(
+      "User-agent: *\nDisallow: /\n",
+      { headers: { "content-type": "text/plain; charset=utf-8", "x-robots-tag": "noindex, nofollow" } },
+    ),
+    "GET https://api-staging.soyaos.ai/robots.txt": new Response(
+      "User-agent: *\nDisallow: /\n",
+      { headers: { "content-type": "text/plain; charset=utf-8", "x-robots-tag": "noindex, nofollow" } },
+    ),
+    "GET https://developer.soyaos.ai/llm.txt": new Response("not found", { status: 404 }),
     "POST https://developer.soyaos.ai/auth/e2e/session": new Response("not found", { status: 404 }),
     "POST https://developer.soyaos.ai/auth/e2e/reset": new Response("not found", { status: 404 }),
     ...overrides,
@@ -61,7 +118,7 @@ describe("production preflight", () => {
   it("passes all read-only production contracts", async () => {
     const result = await runProductionPreflight(productionFetch());
     expect(result.result).toBe("pass");
-    expect(result.checks).toHaveLength(10);
+    expect(result.checks).toHaveLength(16);
     expect(result.checks.every((check) => check.result === "pass")).toBe(true);
   });
 

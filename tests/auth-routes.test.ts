@@ -262,6 +262,41 @@ describe("auth middleware", () => {
     );
   });
 
+  it("never treats an allowed crawler identity as authentication", async () => {
+    const context = routeContext(
+      "https://developer.soyaos.ai/en/api-keys",
+      new MemoryCookies(),
+      ENV,
+    ) as unknown as { request: Request };
+    context.request = new Request("https://developer.soyaos.ai/en/api-keys", {
+      headers: { "user-agent": "GPTBot/1.0" },
+    });
+    const response = (await onRequest(
+      context as never,
+      async () => new Response("protected content"),
+    )) as Response;
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(
+      "/en/login?returnTo=%2Fen%2Fapi-keys",
+    );
+  });
+
+  it("marks every staging response as noindex and nofollow", async () => {
+    const redirectResponse = (await onRequest(
+      routeContext("https://developer-staging.soyaos.ai/docs", new MemoryCookies(), ENV),
+      async () => new Response("must not run"),
+    )) as Response;
+    expect(redirectResponse.status).toBe(302);
+    expect(redirectResponse.headers.get("x-robots-tag")).toBe("noindex, nofollow");
+
+    const discoveryResponse = (await onRequest(
+      routeContext("https://api-staging.soyaos.ai/robots.txt", new MemoryCookies(), ENV),
+      async () => new Response("User-agent: *\nDisallow: /\n"),
+    )) as Response;
+    expect(discoveryResponse.status).toBe(200);
+    expect(discoveryResponse.headers.get("x-robots-tag")).toBe("noindex, nofollow");
+  });
+
   it("allows public pages without a session", async () => {
     const response = (await onRequest(
       routeContext("https://developer.soyaos.ai/en/docs", new MemoryCookies(), ENV),

@@ -54,6 +54,19 @@ function withQuery(pathname: string, url: URL): string {
 export const onRequest: MiddlewareHandler = async (context, next) => {
   const hostname = context.url.hostname.toLowerCase();
   const rawPathname = context.url.pathname.replace(/\/$/, "") || "/";
+  const stagingHost = hostname === "developer-staging.soyaos.ai" || hostname === "api-staging.soyaos.ai";
+  const withHostPolicy = (response: Response): Response => {
+    if (
+      stagingHost ||
+      (hostname === "api.soyaos.ai" && !DISCOVERY_PATHS.has(rawPathname)) ||
+      rawPathname.startsWith("/auth/") ||
+      rawPathname.startsWith("/control/") ||
+      rawPathname.startsWith("/v1/")
+    ) {
+      response.headers.set("x-robots-tag", "noindex, nofollow");
+    }
+    return response;
+  };
   context.locals.locale = DEFAULT_LOCALE;
   context.locals.publicPath = context.url.pathname;
 
@@ -62,13 +75,14 @@ export const onRequest: MiddlewareHandler = async (context, next) => {
   }
 
   if (hostname === "status.soyaos.ai") {
+    if (DISCOVERY_PATHS.has(rawPathname)) return withHostPolicy(await next());
     if (rawPathname === "/") {
       return redirect(`/${negotiateLocale(context.request.headers.get("accept-language"))}`);
     }
     const segment = rawPathname.slice(1);
     if (!isLocale(segment)) return notFound();
     context.locals.locale = segment;
-    return next("/status");
+    return withHostPolicy(await next("/status"));
   }
 
   const bypassLocale =
@@ -89,16 +103,16 @@ export const onRequest: MiddlewareHandler = async (context, next) => {
     context.locals.locale = markdownMatch[1];
   } else if (!bypassLocale) {
     const firstSegment = rawPathname.split("/")[1] ?? "";
-    if (UNSUPPORTED_LOCALE_SEGMENTS.has(firstSegment.toLowerCase())) return notFound();
+    if (UNSUPPORTED_LOCALE_SEGMENTS.has(firstSegment.toLowerCase())) return withHostPolicy(notFound());
 
     if (isLocale(firstSegment)) {
       context.locals.locale = firstSegment;
       pathname = stripLocale(rawPathname, firstSegment).replace(/\/$/, "") || "/";
-      if (!USER_PAGE_PATHS.has(pathname)) return notFound();
+      if (!USER_PAGE_PATHS.has(pathname)) return withHostPolicy(notFound());
       rewriteTarget = withQuery(pathname, context.url);
     } else if (USER_PAGE_PATHS.has(rawPathname)) {
       const locale = negotiateLocale(context.request.headers.get("accept-language"));
-      return redirect(withQuery(localizePath(locale, rawPathname), context.url));
+      return withHostPolicy(redirect(withQuery(localizePath(locale, rawPathname), context.url)));
     }
   }
 
@@ -111,35 +125,35 @@ export const onRequest: MiddlewareHandler = async (context, next) => {
   }
 
   if (pathname.startsWith("/control/v1") && !session) {
-    return Response.json(
+    return withHostPolicy(Response.json(
       { error: { code: "unauthorized", message: "Authentication required." } },
       { status: 401, headers: { "cache-control": "no-store" } },
-    );
+    ));
   }
 
   if (pathname === "/login" && session) {
     const fallback = `/${context.locals.locale}`;
     const returnTo = sanitizeReturnTo(context.url.searchParams.get("returnTo"), fallback);
-    return new Response(null, {
+    return withHostPolicy(new Response(null, {
       status: 303,
       headers: {
         "cache-control": "private, no-store",
         location: returnTo === localizePath(context.locals.locale, "/login") ? fallback : returnTo,
         vary: "Cookie",
       },
-    });
+    }));
   }
 
   if (PROTECTED_PATHS.has(pathname) && !session) {
     const returnTo = withQuery(localizePath(context.locals.locale, pathname), context.url);
     const login = localizePath(context.locals.locale, "/login");
-    return new Response(null, {
+    return withHostPolicy(new Response(null, {
       status: 303,
       headers: {
         "cache-control": "no-store",
         location: `${login}?returnTo=${encodeURIComponent(returnTo)}`,
       },
-    });
+    }));
   }
 
   const response = await next(rewriteTarget);
@@ -148,8 +162,5 @@ export const onRequest: MiddlewareHandler = async (context, next) => {
     response.headers.set("cache-control", "private, no-store");
     response.headers.append("vary", "Cookie");
   }
-  if (hostname === "developer-staging.soyaos.ai") {
-    response.headers.set("x-robots-tag", "noindex, nofollow");
-  }
-  return response;
+  return withHostPolicy(response);
 };

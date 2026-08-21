@@ -4,6 +4,8 @@ const PORTAL = "https://developer.soyaos.ai";
 const API = "https://api.soyaos.ai";
 const CLOUD = "https://cloud.soyaos.ai";
 const STATUS = "https://status.soyaos.ai";
+const STAGING = "https://developer-staging.soyaos.ai";
+const API_STAGING = "https://api-staging.soyaos.ai";
 
 function positiveIntegerEnvironment(name, fallback) {
   const value = Number.parseInt(process.env[name] ?? "", 10);
@@ -72,6 +74,20 @@ async function expectNotFound(fetcher, path) {
     redirect: "error",
   });
   invariant(response.status === 404, `${path}: expected 404, got ${response.status}`);
+}
+
+async function expectText(fetcher, name, url, contentType, markers, init = {}) {
+  const response = await fetchWithRetry(fetcher, url, { redirect: "error", ...init });
+  invariant(response.status === 200, `${name}: expected 200, got ${response.status}`);
+  invariant(
+    response.headers.get("content-type")?.startsWith(contentType),
+    `${name}: expected ${contentType}`,
+  );
+  const body = await response.text();
+  for (const marker of markers) {
+    invariant(body.includes(marker), `${name}: missing contract marker ${marker}`);
+  }
+  return response;
 }
 
 export async function runProductionPreflight(fetcher = fetch) {
@@ -149,6 +165,72 @@ export async function runProductionPreflight(fetcher = fetch) {
       "v0.2.0",
     ]),
   );
+  await check("portal-discovery", async () => {
+    await expectText(fetcher, "portal-robots", `${PORTAL}/robots.txt`, "text/plain", [
+      "Allow: /",
+      `Sitemap: ${PORTAL}/sitemap.xml`,
+      "Disallow: /control/",
+    ]);
+    await expectText(fetcher, "portal-sitemap", `${PORTAL}/sitemap.xml`, "application/xml", [
+      `<loc>${PORTAL}/zh</loc>`,
+      `<loc>${PORTAL}/zh-hant/privacy</loc>`,
+      `<loc>${PORTAL}/en/docs</loc>`,
+      'hreflang="x-default"',
+    ]);
+    await expectText(fetcher, "portal-llms", `${PORTAL}/llms.txt`, "text/markdown", [
+      "# SoyaOS Developer Portal",
+      `${PORTAL}/zh.md`,
+      `${PORTAL}/zh-hant/terms.md`,
+      `${PORTAL}/en/privacy.md`,
+    ]);
+  });
+  await check("status-discovery", async () => {
+    await expectText(fetcher, "status-robots", `${STATUS}/robots.txt`, "text/plain", [
+      `Sitemap: ${STATUS}/sitemap.xml`,
+    ]);
+    await expectText(fetcher, "status-sitemap", `${STATUS}/sitemap.xml`, "application/xml", [
+      `<loc>${STATUS}/zh</loc>`,
+      `<loc>${STATUS}/zh-hant</loc>`,
+      `<loc>${STATUS}/en</loc>`,
+    ]);
+    await expectText(fetcher, "status-llms", `${STATUS}/llms.txt`, "text/markdown", [
+      "# SoyaOS Cloud Status",
+      `${STATUS}/zh-hant`,
+    ]);
+  });
+  await check("api-discovery", async () => {
+    await expectText(fetcher, "api-robots", `${API}/robots.txt`, "text/plain", [
+      "Disallow: /",
+      "Allow: /llms.txt",
+      "Sitemap: https://soyaos.ai/sitemap.xml",
+    ]);
+    await expectText(fetcher, "api-llms", `${API}/llms.txt`, "text/markdown", [
+      "# SoyaOS API",
+      "https://soyaos.ai/en/docs/http-api.md",
+    ]);
+    const sitemap = await fetchWithRetry(fetcher, `${API}/sitemap.xml`, { redirect: "manual" });
+    invariant(sitemap.status === 308, `api-sitemap: expected 308, got ${sitemap.status}`);
+    invariant(sitemap.headers.get("location") === "https://soyaos.ai/sitemap.xml", "api-sitemap: invalid location");
+  });
+  await check("cloud-discovery-redirect", async () => {
+    for (const path of ["/robots.txt", "/sitemap.xml", "/llms.txt"]) {
+      const response = await fetchWithRetry(fetcher, `${CLOUD}${path}`, { redirect: "manual" });
+      invariant(response.status === 302, `cloud${path}: expected 302, got ${response.status}`);
+      invariant(response.headers.get("location") === `${PORTAL}${path}`, `cloud${path}: invalid location`);
+    }
+  });
+  await check("staging-crawl-policy", async () => {
+    for (const origin of [STAGING, API_STAGING]) {
+      const response = await expectText(fetcher, "staging-robots", `${origin}/robots.txt`, "text/plain", [
+        "User-agent: *\nDisallow: /",
+      ]);
+      invariant(response.headers.get("x-robots-tag") === "noindex, nofollow", `${origin}: missing noindex policy`);
+    }
+  });
+  await check("singular-llm-path-absent", async () => {
+    const response = await fetchWithRetry(fetcher, `${PORTAL}/llm.txt`, { redirect: "error" });
+    invariant(response.status === 404, `singular-llm-path-absent: expected 404, got ${response.status}`);
+  });
   await check("production-e2e-session-disabled", () => expectNotFound(fetcher, "/auth/e2e/session"));
   await check("production-e2e-reset-disabled", () => expectNotFound(fetcher, "/auth/e2e/reset"));
 
