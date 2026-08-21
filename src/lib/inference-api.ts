@@ -5,6 +5,12 @@ import {
   verifyApiKey,
   type VerifiedApiKey,
 } from "./control-plane";
+import {
+  emitInferenceHealth,
+  emitMetadataWriteFailure,
+  type InferenceOutcome,
+  type MetadataWritePhase,
+} from "./observability";
 
 export const PUBLIC_MODEL_ID = "soya:starter";
 export const WORKERS_AI_MODEL = "@cf/qwen/qwen3-30b-a3b-fp8";
@@ -141,15 +147,6 @@ function normalizeError(error: unknown): InferenceApiError {
 
 function errorResponse(request: Request, id: string, error: unknown): Response {
   const normalized = normalizeError(error);
-  if (normalized.status >= 500 && normalized.code === "internal_error") {
-    console.error(
-      JSON.stringify({
-        message: "unhandled inference API error",
-        requestId: id,
-        error: error instanceof Error ? error.message : "unknown",
-      }),
-    );
-  }
   const headers = normalized.retryAfter
     ? { "retry-after": String(normalized.retryAfter) }
     : undefined;
@@ -362,13 +359,7 @@ async function defaultRunner(env: PortalEnv, input: InferenceRunInput) {
       { ...modelInput, stream: false },
       { signal: input.signal, tags: ["soya:starter"] },
     );
-  } catch (error) {
-    console.error(
-      JSON.stringify({
-        message: "Workers AI inference failed",
-        error: error instanceof Error ? error.message : "unknown",
-      }),
-    );
+  } catch {
     throw new InferenceApiError(503, "upstream_unavailable", "The model is temporarily unavailable.", 30);
   }
 }
@@ -483,24 +474,57 @@ function relayStream(
   let finished = false;
   let finalized = false;
 
-  const finalize = async (status: "success" | "error", statusCode: number, code?: string) => {
+  const healthTokens = () => ({
+    promptTokens: promptTokens ?? parsed.promptTokens,
+    completionTokens:
+      completionTokens ?? (completionText ? estimateTokens(completionText) : 0),
+  });
+
+  const emitHealth = (
+    statusCode: number,
+    outcome: InferenceOutcome,
+    errorCode: string | null = null,
+  ) => {
+    const tokens = healthTokens();
+    emitInferenceHealth({
+      requestId: id,
+      model: PUBLIC_MODEL_ID,
+      stream: true,
+      statusCode,
+      outcome,
+      errorCode,
+      latencyMs: Math.max(0, Date.now() - startedAt),
+      ...tokens,
+    });
+  };
+
+  const finalize = async (
+    status: "success" | "error",
+    statusCode: number,
+    phase: MetadataWritePhase,
+    code?: string,
+  ) => {
     if (finalized) return;
     finalized = true;
-    await finalizeInference(db, {
-      requestId: id,
-      tenantId: verified.tenantId,
-      apiKeyId: verified.keyId,
-      traceId: trace,
-      model: PUBLIC_MODEL_ID,
-      promptTokens: promptTokens ?? parsed.promptTokens,
-      completionTokens:
-        completionTokens ?? (completionText ? estimateTokens(completionText) : 0),
-      statusCode,
-      status,
-      errorCode: code ?? null,
-      latencyMs: Math.max(0, Date.now() - startedAt),
-      createdAt: startedAt,
-    });
+    const tokens = healthTokens();
+    try {
+      await finalizeInference(db, {
+        requestId: id,
+        tenantId: verified.tenantId,
+        apiKeyId: verified.keyId,
+        traceId: trace,
+        model: PUBLIC_MODEL_ID,
+        ...tokens,
+        statusCode,
+        status,
+        errorCode: code ?? null,
+        latencyMs: Math.max(0, Date.now() - startedAt),
+        createdAt: startedAt,
+      });
+    } catch (error) {
+      emitMetadataWriteFailure(id, phase);
+      throw error;
+    }
   };
 
   const handleEvent = (event: string) => {
@@ -528,32 +552,19 @@ function relayStream(
 
   const finishSuccess = async () => {
     if (finished) return;
-    await finalize("success", 200);
+    await finalize("success", 200, "stream_success");
+    emitHealth(200, "success");
     queue.push(encoder.encode(openAiChunk(id, created, {}, "stop")));
     queue.push(encoder.encode("data: [DONE]\n\n"));
     finished = true;
   };
 
-  const finishError = async (error: unknown) => {
+  const finishError = async (_error: unknown) => {
     if (finished) return;
-    console.error(
-      JSON.stringify({
-        message: "Workers AI stream failed",
-        requestId: id,
-        error: error instanceof Error ? error.message : "unknown",
-      }),
-    );
     try {
-      await finalize("error", 503, "upstream_stream_error");
-    } catch (finalizeError) {
-      console.error(
-        JSON.stringify({
-          message: "stream metadata finalization failed",
-          requestId: id,
-          error: finalizeError instanceof Error ? finalizeError.message : "unknown",
-        }),
-      );
-    }
+      await finalize("error", 503, "stream_error", "upstream_stream_error");
+    } catch {}
+    emitHealth(503, "error", "upstream_stream_error");
     queue.push(
       encoder.encode(
         `data: ${JSON.stringify({
@@ -605,17 +616,11 @@ function relayStream(
     },
     async cancel(reason) {
       await reader.cancel(reason);
+      if (finished) return;
       try {
-        await finalize("error", 499, "client_cancelled");
-      } catch (error) {
-        console.error(
-          JSON.stringify({
-            message: "cancelled stream metadata finalization failed",
-            requestId: id,
-            error: error instanceof Error ? error.message : "unknown",
-          }),
-        );
-      }
+        await finalize("error", 499, "stream_cancelled", "client_cancelled");
+      } catch {}
+      emitHealth(499, "error", "client_cancelled");
     },
   });
 }
@@ -713,18 +718,33 @@ export async function handleChatCompletionsRequest(
     }
 
     const completion = extractCompletion(output, parsed.promptTokens);
-    await finalizeInference(db, {
+    try {
+      await finalizeInference(db, {
+        requestId: id,
+        tenantId: verified.tenantId,
+        apiKeyId: verified.keyId,
+        traceId: trace,
+        model: PUBLIC_MODEL_ID,
+        promptTokens: completion.promptTokens,
+        completionTokens: completion.completionTokens,
+        statusCode: 200,
+        status: "success",
+        latencyMs: Math.max(0, (options.now?.() ?? Date.now()) - startedAt),
+        createdAt: startedAt,
+      });
+    } catch (error) {
+      emitMetadataWriteFailure(id, "completion_success");
+      throw error;
+    }
+    emitInferenceHealth({
       requestId: id,
-      tenantId: verified.tenantId,
-      apiKeyId: verified.keyId,
-      traceId: trace,
       model: PUBLIC_MODEL_ID,
+      stream: false,
+      statusCode: 200,
+      outcome: "success",
+      latencyMs: Math.max(0, (options.now?.() ?? Date.now()) - startedAt),
       promptTokens: completion.promptTokens,
       completionTokens: completion.completionTokens,
-      statusCode: 200,
-      status: "success",
-      latencyMs: Math.max(0, (options.now?.() ?? Date.now()) - startedAt),
-      createdAt: startedAt,
     });
     return jsonResponse(request, id, {
       id: `chatcmpl-${id.slice(4)}`,
@@ -762,16 +782,21 @@ export async function handleChatCompletionsRequest(
           latencyMs: Math.max(0, (options.now?.() ?? Date.now()) - startedAt),
           createdAt: startedAt,
         });
-      } catch (finalizeError) {
-        console.error(
-          JSON.stringify({
-            message: "inference failure metadata finalization failed",
-            requestId: id,
-            error: finalizeError instanceof Error ? finalizeError.message : "unknown",
-          }),
-        );
+      } catch {
+        emitMetadataWriteFailure(id, "completion_error");
       }
     }
+    emitInferenceHealth({
+      requestId: id,
+      model: PUBLIC_MODEL_ID,
+      stream: parsed?.stream ?? null,
+      statusCode: normalized.status,
+      outcome: normalized.status >= 500 ? "error" : "rejected",
+      errorCode: normalized.code,
+      latencyMs: Math.max(0, (options.now?.() ?? Date.now()) - startedAt),
+      promptTokens: parsed?.promptTokens ?? 0,
+      completionTokens: 0,
+    });
     return errorResponse(request, id, normalized);
   }
 }

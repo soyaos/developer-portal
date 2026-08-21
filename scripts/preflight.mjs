@@ -4,8 +4,14 @@ const PORTAL = "https://developer.soyaos.ai";
 const API = "https://api.soyaos.ai";
 const CLOUD = "https://cloud.soyaos.ai";
 const STATUS = "https://status.soyaos.ai";
-const RETRY_ATTEMPTS = 13;
-const RETRY_DELAY_MS = 5_000;
+
+function positiveIntegerEnvironment(name, fallback) {
+  const value = Number.parseInt(process.env[name] ?? "", 10);
+  return Number.isSafeInteger(value) && value > 0 ? value : fallback;
+}
+
+const RETRY_ATTEMPTS = positiveIntegerEnvironment("PREFLIGHT_RETRY_ATTEMPTS", 13);
+const RETRY_DELAY_MS = positiveIntegerEnvironment("PREFLIGHT_RETRY_DELAY_MS", 5_000);
 
 function invariant(condition, message) {
   if (!condition) throw new Error(message);

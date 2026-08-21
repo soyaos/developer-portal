@@ -40,7 +40,15 @@
   ],
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 1
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    }
   },
   "env": {
     "staging": {
@@ -70,7 +78,19 @@
           "database_id": "1ecb5b92-491a-43d9-b4ed-784d39d8752b",
           "migrations_dir": "migrations"
         }
-      ]
+      ],
+      "observability": {
+        "enabled": true,
+        "logs": {
+          "enabled": true,
+          "head_sampling_rate": 1,
+          "invocation_logs": true
+        },
+        "traces": {
+          "enabled": true,
+          "head_sampling_rate": 1
+        }
+      }
     }
   }
 }

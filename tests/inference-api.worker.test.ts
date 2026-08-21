@@ -105,6 +105,7 @@ describe("OpenAI-compatible inference data plane", () => {
 
   it("returns a non-streaming OpenAI envelope and records body-free metadata", async () => {
     const { tenant, key } = await createTestKey();
+    const healthLog = vi.spyOn(console, "log").mockImplementation(() => undefined);
     const run = vi.fn(async () => ({
       response: "pong",
       usage: { prompt_tokens: 7, completion_tokens: 2, total_tokens: 9 },
@@ -141,6 +142,23 @@ describe("OpenAI-compatible inference data plane", () => {
       expect.objectContaining({ model: PUBLIC_MODEL_ID, status: "success" }),
     ]);
     expect(JSON.stringify(traces)).not.toContain("Reply with pong");
+    expect(healthLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "soyaos.inference.completed",
+        model: PUBLIC_MODEL_ID,
+        stream: false,
+        statusCode: 200,
+        outcome: "success",
+        promptTokens: 7,
+        completionTokens: 2,
+        totalTokens: 9,
+      }),
+    );
+    const serializedLogs = healthLog.mock.calls.map(([event]) => JSON.stringify(event)).join("\n");
+    expect(serializedLogs).not.toContain("Reply with pong");
+    expect(serializedLogs).not.toContain(key.rawKey);
+    expect(serializedLogs).not.toContain(tenant.id);
+    healthLog.mockRestore();
   });
 
   it("relays Workers AI SSE with backpressure and finalizes usage before DONE", async () => {

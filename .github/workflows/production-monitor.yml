@@ -1,0 +1,33 @@
+name: Monitor production
+
+on:
+  schedule:
+    - cron: "2-57/5 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-read-only-monitor
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: Probe public production contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Run read-only production probe
+        run: npm run preflight:production
+        env:
+          PREFLIGHT_RETRY_ATTEMPTS: "3"
+          PREFLIGHT_RETRY_DELAY_MS: "2000"
