@@ -9,17 +9,20 @@ const MAX_RESPONSE_BYTES = 1_048_576;
 const SMOKE_PROMPT = "Reply with exactly one lowercase word: ready";
 
 export class ProductionSmokeFailure extends Error {
-  constructor(check, code, status = null) {
+  constructor(check, code, status = null, requestId = null) {
     super(`${check}: ${code}`);
     this.name = "ProductionSmokeFailure";
     this.check = check;
     this.code = code;
     this.status = Number.isInteger(status) ? status : null;
+    this.requestId = typeof requestId === "string" && REQUEST_ID_PATTERN.test(requestId)
+      ? requestId
+      : null;
   }
 }
 
-function fail(check, code, status = null) {
-  throw new ProductionSmokeFailure(check, code, status);
+function fail(check, code, status = null, requestId = null) {
+  throw new ProductionSmokeFailure(check, code, status, requestId);
 }
 
 function isRecord(value) {
@@ -91,7 +94,14 @@ async function request(fetcher, check, path, apiKey, init = {}) {
 }
 
 function requireOk(response, check) {
-  if (response.status !== 200) fail(check, "unexpected_status", response.status);
+  if (response.status !== 200) {
+    fail(
+      check,
+      "unexpected_status",
+      response.status,
+      response.headers.get("x-request-id"),
+    );
+  }
 }
 
 async function checkModels(fetcher, apiKey) {
@@ -122,7 +132,7 @@ async function checkNonStreaming(fetcher, apiKey) {
     body: JSON.stringify({
       model: PUBLIC_MODEL,
       messages: [{ role: "user", content: SMOKE_PROMPT }],
-      max_tokens: 16,
+      max_tokens: 512,
       stream: false,
     }),
   });
@@ -196,7 +206,7 @@ async function checkStreaming(fetcher, apiKey) {
     body: JSON.stringify({
       model: PUBLIC_MODEL,
       messages: [{ role: "user", content: SMOKE_PROMPT }],
-      max_tokens: 16,
+      max_tokens: 512,
       stream: true,
     }),
   });
@@ -253,6 +263,7 @@ export function productionSmokeFailureReport(error, checkedAt = new Date().toISO
     check: failure?.check ?? "runner",
     code: failure?.code ?? "unexpected_failure",
     ...(failure?.status === null ? {} : { status: failure.status }),
+    ...(failure?.requestId === null ? {} : { requestId: failure.requestId }),
   };
 }
 

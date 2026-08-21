@@ -102,8 +102,8 @@ describe("one-shot production inference smoke", () => {
       .filter(({ init }) => init.method === "POST")
       .map(({ init }) => JSON.parse(init.body));
     expect(postBodies).toEqual([
-      expect.objectContaining({ model: "soya:starter", max_tokens: 16, stream: false }),
-      expect.objectContaining({ model: "soya:starter", max_tokens: 16, stream: true }),
+      expect.objectContaining({ model: "soya:starter", max_tokens: 512, stream: false }),
+      expect.objectContaining({ model: "soya:starter", max_tokens: 512, stream: true }),
     ]);
 
     const serializedResult = JSON.stringify(result);
@@ -124,10 +124,38 @@ describe("one-shot production inference smoke", () => {
   });
 
   it("reports only a fixed error code when an upstream body contains sensitive text", async () => {
+    const upstreamResponse = new Response(ERROR_BODY, {
+      status: 500,
+      headers: {
+        "content-type": "text/plain",
+        "x-request-id": `req_${"4".repeat(32)}`,
+      },
+    });
+    const fetcher = vi.fn(async () => upstreamResponse);
+    const error = await runProductionSmoke({ apiKey: TEST_KEY, fetcher }).catch((cause) => cause);
+    const report = productionSmokeFailureReport(error, "2026-08-20T00:00:00.000Z");
+    expect(report).toMatchObject({
+      result: "fail",
+      check: "models",
+      code: "unexpected_status",
+      status: 500,
+      requestId: `req_${"4".repeat(32)}`,
+    });
+    const serializedReport = JSON.stringify(report);
+    expect(serializedReport).not.toContain(TEST_KEY);
+    expect(serializedReport).not.toContain(ERROR_BODY);
+    expect(upstreamResponse.bodyUsed).toBe(false);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("omits an invalid upstream request ID from the fixed failure report", async () => {
     const { fetcher } = smokeFetch({
       "GET https://api.soyaos.ai/v1/models": new Response(ERROR_BODY, {
-        status: 500,
-        headers: { "content-type": "text/plain" },
+        status: 502,
+        headers: {
+          "content-type": "text/plain",
+          "x-request-id": "unsafe-control-value",
+        },
       }),
     });
     const error = await runProductionSmoke({ apiKey: TEST_KEY, fetcher }).catch((cause) => cause);
@@ -136,11 +164,10 @@ describe("one-shot production inference smoke", () => {
       result: "fail",
       check: "models",
       code: "unexpected_status",
-      status: 500,
+      status: 502,
     });
-    const serializedReport = JSON.stringify(report);
-    expect(serializedReport).not.toContain(TEST_KEY);
-    expect(serializedReport).not.toContain(ERROR_BODY);
+    expect(report).not.toHaveProperty("requestId");
+    expect(JSON.stringify(report)).not.toContain("unsafe-control-value");
   });
 
   it("rejects inconsistent token usage without exposing the completion body", async () => {

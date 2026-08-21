@@ -14,7 +14,8 @@ is not a recurring monitor and has no scheduled trigger.
   token usage. It never logs the key, Authorization header, prompt, completion
   content or an error response body.
 - Each run sends one non-streaming and one streaming request with
-  `max_tokens: 16`. Cost-bearing POST requests are never retried.
+  `max_tokens: 512`, matching the production API default. Cost-bearing POST
+  requests are never retried.
 - Every response has a 30-second timeout and a 1 MiB body limit.
 
 ## Prepare a disposable key
