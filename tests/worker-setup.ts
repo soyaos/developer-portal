@@ -13,6 +13,9 @@ beforeEach(async () => {
   const testEnv = env as unknown as WorkerTestEnv;
   await applyD1Migrations(testEnv.DB, testEnv.TEST_MIGRATIONS);
   await testEnv.DB.batch([
+    testEnv.DB.prepare(
+      "UPDATE operational_flags SET enabled = 1, updated_at = 0, note = 'test_reset' WHERE name = 'api_key_creation'",
+    ),
     testEnv.DB.prepare("DELETE FROM inference_reservations"),
     testEnv.DB.prepare("DELETE FROM request_traces"),
     testEnv.DB.prepare("DELETE FROM usage_events"),

@@ -68,6 +68,39 @@ API Key 或完整请求正文。
 付费计划，超过免费分配会按模型 Neuron 费率计费。上线前如修改内部预算，必须同步修改
 本表，不能只改口头约定。
 
+### API Key 创建成本熔断
+
+`operational_flags.api_key_creation` 是独立的运行时开关。`enabled=0` 时，只有创建新 Key
+的请求返回 `503 api_key_creation_paused` 和 `Retry-After: 300`；现有 Key 的查询、撤销、
+Models 和 Chat 不受影响。开关记录不含凭证或用户数据，缺失或值异常时按关闭处理。
+
+先查询再操作；production 使用根数据库，staging 使用独立环境：
+
+```bash
+cd /Users/zealot/workspace/soyaos/developer-portal
+npx wrangler d1 execute soyaos-cloud-preview --remote --command \
+  "SELECT name, enabled, updated_at, note FROM operational_flags WHERE name = 'api_key_creation'"
+npx wrangler d1 execute DB --remote --env staging --command \
+  "SELECT name, enabled, updated_at, note FROM operational_flags WHERE name = 'api_key_creation'"
+```
+
+达到 10,000 Neurons、出现非预期账单或 P0 凭证事件时，暂停 production 新 Key 创建：
+
+```bash
+npx wrangler d1 execute soyaos-cloud-preview --remote --command \
+  "UPDATE operational_flags SET enabled = 0, updated_at = CAST(strftime('%s', 'now') AS INTEGER) * 1000, note = 'workers_ai_cost_threshold' WHERE name = 'api_key_creation'"
+```
+
+命令必须显示一行更新；随后复跑 `SELECT` 确认 `enabled=0`。故障解除并完成成本复核后恢复：
+
+```bash
+npx wrangler d1 execute soyaos-cloud-preview --remote --command \
+  "UPDATE operational_flags SET enabled = 1, updated_at = CAST(strftime('%s', 'now') AS INTEGER) * 1000, note = 'restored_after_cost_review' WHERE name = 'api_key_creation'"
+```
+
+staging 演练使用同样 SQL，但数据库参数必须替换为 `DB --remote --env staging`。演练结束
+必须查询确认 `enabled=1`；production 只查询默认值，不为演练短暂关闭。
+
 ## 告警处置
 
 ### 1. 定时公开探测失败

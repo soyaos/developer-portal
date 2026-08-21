@@ -101,6 +101,39 @@ describe("Cloud control plane", () => {
     });
   });
 
+  it("fails closed when API key creation is paused and recovers after re-enabling", async () => {
+    const tenant = await ensureTenant(testEnv.DB, user(101, "alice"), NOW);
+    await testEnv.DB.prepare(
+      "UPDATE operational_flags SET enabled = 0, updated_at = ?1, note = 'cost_drill' WHERE name = 'api_key_creation'",
+    ).bind(NOW).run();
+
+    await expect(
+      createApiKey(testEnv.DB, tenant.id, "blocked", testEnv.API_KEY_PEPPER, NOW),
+    ).rejects.toMatchObject({
+      status: 503,
+      code: "api_key_creation_paused",
+      retryAfter: 300,
+    });
+    const blockedCount = await testEnv.DB.prepare(
+      "SELECT COUNT(*) AS count FROM api_keys WHERE tenant_id = ?1",
+    ).bind(tenant.id).first<{ count: number }>();
+    expect(blockedCount?.count).toBe(0);
+    await expect(
+      testEnv.DB.prepare(
+        `INSERT INTO api_keys (
+          id, tenant_id, name, key_prefix, secret_digest, scopes_json, created_at
+        ) VALUES ('direct_gate', ?1, 'direct', 'sk-soya-direct_gate', 'digest', '[]', ?2)`,
+      ).bind(tenant.id, NOW).run(),
+    ).rejects.toThrow(/api_key_creation_paused/);
+
+    await testEnv.DB.prepare(
+      "UPDATE operational_flags SET enabled = 1, updated_at = ?1, note = 'cost_drill_restored' WHERE name = 'api_key_creation'",
+    ).bind(NOW + 1).run();
+    await expect(
+      createApiKey(testEnv.DB, tenant.id, "restored", testEnv.API_KEY_PEPPER, NOW + 1),
+    ).resolves.toMatchObject({ name: "restored" });
+  });
+
   it("aggregates usage per tenant and exposes only 24-hour trace metadata", async () => {
     const alice = await ensureTenant(testEnv.DB, user(101, "alice"), NOW);
     const bob = await ensureTenant(testEnv.DB, user(202, "bob"), NOW);

@@ -53,6 +53,10 @@ interface StoredApiKeyRow {
   scopes_json: string;
 }
 
+interface OperationalFlagRow {
+  enabled: number;
+}
+
 interface UsageTotalRow {
   requests: number;
   tokens: number;
@@ -220,6 +224,19 @@ export async function createApiKey(
   pepper: string,
   now = Date.now(),
 ): Promise<CreatedApiKey> {
+  const creationFlag = await db
+    .withSession("first-primary")
+    .prepare("SELECT enabled FROM operational_flags WHERE name = 'api_key_creation'")
+    .first<OperationalFlagRow>();
+  if (creationFlag?.enabled !== 1) {
+    throw new ControlPlaneError(
+      503,
+      "api_key_creation_paused",
+      "API key creation is temporarily paused.",
+      300,
+    );
+  }
+
   const name = rawName.trim();
   if (!name || name.length > 64) {
     throw new ControlPlaneError(400, "invalid_key_name", "Key name must be 1–64 characters.");
@@ -252,6 +269,14 @@ export async function createApiKey(
       .bind(id, tenantId, name, prefix, secretDigest, JSON.stringify(KEY_SCOPES), now)
       .run();
   } catch (error) {
+    if (error instanceof Error && error.message.includes("api_key_creation_paused")) {
+      throw new ControlPlaneError(
+        503,
+        "api_key_creation_paused",
+        "API key creation is temporarily paused.",
+        300,
+      );
+    }
     if (error instanceof Error && error.message.includes("active_api_key_limit")) {
       throw new ControlPlaneError(
         409,
