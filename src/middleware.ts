@@ -29,6 +29,11 @@ const USER_PAGE_PATHS = new Set([
 
 const DISCOVERY_PATHS = new Set(["/robots.txt", "/sitemap.xml", "/llms.txt"]);
 const STATIC_PATH = /^\/(?:_astro\/|favicon\.|logo\.)/;
+const PORTAL_HTML_HOSTS = new Set([
+  "developer.soyaos.ai",
+  "developer-staging.soyaos.ai",
+  "cloud.soyaos.ai",
+]);
 
 function notFound(): Response {
   return new Response("Not found.", {
@@ -51,6 +56,21 @@ function withQuery(pathname: string, url: URL): string {
   return `${pathname}${url.search}`;
 }
 
+function slashlessHtmlPath(hostname: string, pathname: string): string | null {
+  if (pathname === "/" || !pathname.endsWith("/")) return null;
+  const candidate = pathname.slice(0, -1);
+
+  if (hostname === "status.soyaos.ai") {
+    return isLocale(candidate.slice(1)) ? candidate : null;
+  }
+  if (!PORTAL_HTML_HOSTS.has(hostname)) return null;
+
+  const firstSegment = candidate.split("/")[1] ?? "";
+  if (!isLocale(firstSegment)) return null;
+  const pagePath = stripLocale(candidate, firstSegment) || "/";
+  return USER_PAGE_PATHS.has(pagePath) ? candidate : null;
+}
+
 export const onRequest: MiddlewareHandler = async (context, next) => {
   const hostname = context.url.hostname.toLowerCase();
   const rawPathname = context.url.pathname.replace(/\/$/, "") || "/";
@@ -69,6 +89,14 @@ export const onRequest: MiddlewareHandler = async (context, next) => {
   };
   context.locals.locale = DEFAULT_LOCALE;
   context.locals.publicPath = context.url.pathname;
+
+  const canonicalHtmlPath = slashlessHtmlPath(hostname, context.url.pathname);
+  if (canonicalHtmlPath) {
+    const location = hostname === "cloud.soyaos.ai"
+      ? `https://developer.soyaos.ai${canonicalHtmlPath}${context.url.search}`
+      : withQuery(canonicalHtmlPath, context.url);
+    return withHostPolicy(redirect(location, 308));
+  }
 
   if (hostname === "cloud.soyaos.ai") {
     return redirect(`https://developer.soyaos.ai${context.url.pathname}${context.url.search}`);

@@ -214,6 +214,38 @@ describe("auth middleware", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  it("permanently removes trailing slashes only from known HTML pages", async () => {
+    const next = vi.fn(async () => new Response("must not run"));
+    const portal = (await onRequest(
+      routeContext("https://developer.soyaos.ai/en/docs/?from=legacy", new MemoryCookies(), ENV),
+      next,
+    )) as Response;
+    expect(portal.status).toBe(308);
+    expect(portal.headers.get("location")).toBe("/en/docs?from=legacy");
+
+    const status = (await onRequest(
+      routeContext("https://status.soyaos.ai/zh-hant/", new MemoryCookies(), ENV),
+      next,
+    )) as Response;
+    expect(status.status).toBe(308);
+    expect(status.headers.get("location")).toBe("/zh-hant");
+
+    const cloud = (await onRequest(
+      routeContext("https://cloud.soyaos.ai/en/docs/", new MemoryCookies(), ENV),
+      next,
+    )) as Response;
+    expect(cloud.status).toBe(308);
+    expect(cloud.headers.get("location")).toBe("https://developer.soyaos.ai/en/docs");
+
+    const api = vi.fn(async () => new Response("api route"));
+    const apiResponse = (await onRequest(
+      routeContext("https://api.soyaos.ai/v1/models/", new MemoryCookies(), ENV),
+      api,
+    )) as Response;
+    expect(apiResponse.status).toBe(200);
+    expect(api).toHaveBeenCalledOnce();
+  });
+
   it("negotiates the status root and serves only localized status pages", async () => {
     const next = vi.fn(async (rewrite?: string | URL | Request) => {
       expect(rewrite).toBe("/status");

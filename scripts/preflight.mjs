@@ -165,6 +165,17 @@ export async function runProductionPreflight(fetcher = fetch) {
       "v0.2.0",
     ]),
   );
+  await check("slashless-html-canonical", async () => {
+    for (const [url, location] of [
+      [`${PORTAL}/en/docs/?from=legacy`, "/en/docs?from=legacy"],
+      [`${STATUS}/en/`, "/en"],
+      [`${CLOUD}/en/docs/`, `${PORTAL}/en/docs`],
+    ]) {
+      const response = await fetchWithRetry(fetcher, url, { redirect: "manual" });
+      invariant(response.status === 308, `${url}: expected 308, got ${response.status}`);
+      invariant(response.headers.get("location") === location, `${url}: invalid location`);
+    }
+  });
   await check("portal-discovery", async () => {
     await expectText(fetcher, "portal-robots", `${PORTAL}/robots.txt`, "text/plain", [
       "Allow: /",

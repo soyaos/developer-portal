@@ -45,6 +45,18 @@ function productionFetch(overrides = {}) {
     "GET https://status.soyaos.ai/en": new Response(
       "SoyaOS Cloud Status · All systems operational · v0.2.0",
     ),
+    "GET https://developer.soyaos.ai/en/docs/?from=legacy": new Response(null, {
+      status: 308,
+      headers: { location: "/en/docs?from=legacy" },
+    }),
+    "GET https://status.soyaos.ai/en/": new Response(null, {
+      status: 308,
+      headers: { location: "/en" },
+    }),
+    "GET https://cloud.soyaos.ai/en/docs/": new Response(null, {
+      status: 308,
+      headers: { location: "https://developer.soyaos.ai/en/docs" },
+    }),
     "GET https://developer.soyaos.ai/robots.txt": new Response(
       "User-agent: *\nAllow: /\nDisallow: /control/\nSitemap: https://developer.soyaos.ai/sitemap.xml\n",
       { headers: { "content-type": "text/plain; charset=utf-8" } },
@@ -118,7 +130,7 @@ describe("production preflight", () => {
   it("passes all read-only production contracts", async () => {
     const result = await runProductionPreflight(productionFetch());
     expect(result.result).toBe("pass");
-    expect(result.checks).toHaveLength(16);
+    expect(result.checks).toHaveLength(17);
     expect(result.checks.every((check) => check.result === "pass")).toBe(true);
   });
 

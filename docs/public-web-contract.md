@@ -74,6 +74,11 @@ agent-facing Markdown, authenticated application routes, and API surfaces.
 same locale algorithm. `cloud.soyaos.ai` preserves localized paths while
 redirecting them to `developer.soyaos.ai`.
 
+The hostname root `/` is the only public HTML URL that ends in `/`. Every
+localized HTML URL is slashless. A legacy trailing-slash request receives one
+permanent redirect to the slashless form with its query string preserved;
+file-like discovery and Markdown paths are never rewritten by this rule.
+
 ## 4. HTML representation
 
 Every indexable HTML response:
@@ -159,6 +164,8 @@ sufficient if the edge returns a challenge or `403` to an allowed crawler.
   with the corresponding content record.
 - Discovery tests parse robots, sitemap, and `llms.txt`, request every listed
   URL, and reject private/noindex/redirect URLs in the sitemap.
+- URL-shape tests reject trailing slashes in canonical/hreflang/sitemap URLs
+  and verify one permanent redirect from each legacy HTML form.
 - Browser E2E validates the dropdown, keyboard controls, current-locale state,
   and preservation of path/query/fragment.
 - Staging passes the full public-web suite before production deployment.
