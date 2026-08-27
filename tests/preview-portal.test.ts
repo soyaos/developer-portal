@@ -24,13 +24,19 @@ describe("SoyaOS Cloud v0.2.0 stable Portal contract", () => {
   it("keeps raw Playground keys out of browser persistence and logs", () => {
     const component = source("src/components/Playground.tsx");
     const client = source("src/lib/playground-client.ts");
+    const readme = source("README.md");
     const combined = `${component}\n${client}`;
 
     expect(combined).not.toMatch(/localStorage|sessionStorage|document\.cookie/);
     expect(combined).not.toMatch(/console\.(?:log|debug|info|warn|error)/);
     expect(component).toContain('type="password"');
+    expect(component).toContain("messages.apiKeyPlaceholder");
+    expect(component).not.toContain("sk-soya-");
     expect(component).toContain("formatPlaygroundError(cause, key, messages)");
     expect(component).toContain("messages.clear");
+    expect(readme).toContain("API keys are opaque strings");
+    expect(readme).not.toContain("sk-soya-");
+    expect(readme).not.toContain("<key_id>");
   });
 
   it("links localized terms and privacy notices", () => {

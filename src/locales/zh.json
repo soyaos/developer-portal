@@ -107,6 +107,7 @@
       "request": "请求",
       "keyMemory": "密钥仅保留在当前标签页的组件内存中，刷新页面后即清除。",
       "apiKey": "API 密钥",
+      "apiKeyPlaceholder": "粘贴 API 密钥",
       "loading": "正在加载…",
       "loadModels": "加载模型",
       "clear": "清除",

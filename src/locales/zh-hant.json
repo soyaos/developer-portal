@@ -107,6 +107,7 @@
       "request": "請求",
       "keyMemory": "金鑰僅保留在目前分頁的元件記憶體中，重新整理頁面後即清除。",
       "apiKey": "API 金鑰",
+      "apiKeyPlaceholder": "貼上 API 金鑰",
       "loading": "正在載入…",
       "loadModels": "載入模型",
       "clear": "清除",

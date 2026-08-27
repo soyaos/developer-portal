@@ -107,6 +107,7 @@
       "request": "Request",
       "keyMemory": "Your key stays only in this tab's component memory and is cleared on refresh.",
       "apiKey": "API key",
+      "apiKeyPlaceholder": "Paste API key",
       "loading": "Loading…",
       "loadModels": "Load models",
       "clear": "Clear",

@@ -214,7 +214,7 @@ export function Playground({ messages, locale }: { messages: Messages; locale: L
                 autoComplete="off"
                 autoCapitalize="off"
                 spellCheck={false}
-                placeholder="sk-soya-…"
+                placeholder={messages.apiKeyPlaceholder}
               />
               <Button
                 variant="secondary"

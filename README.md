@@ -124,7 +124,7 @@ SoyaOS Cloud v0.2.0 exposes an OpenAI-compatible subset at
 `https://api.soyaos.ai`. Create an API key in the Developer Portal, then run:
 
 ```bash
-export SOYAOS_API_KEY='sk-soya-...'
+export SOYAOS_API_KEY='YOUR_API_KEY'
 curl https://api.soyaos.ai/v1/chat/completions \
   --header "Authorization: Bearer ${SOYAOS_API_KEY}" \
   --header 'Content-Type: application/json' \
@@ -146,7 +146,8 @@ Prompt and completion bodies are never persisted.
 The authenticated control plane uses one D1 database with strict
 `tenant_id` filters. Each GitHub numeric ID maps to one personal tenant.
 
-- API keys follow `sk-soya-<key_id>.<secret>` and are shown once.
+- API keys are opaque strings shown once. External callers must not parse,
+  validate, or depend on their prefix, length, or internal structure.
 - D1 stores only an HMAC-SHA-256 digest derived with `API_KEY_PEPPER`.
 - A tenant can keep at most three active keys.
 - Usage and trace metadata is retained for 24 hours; prompt and response
